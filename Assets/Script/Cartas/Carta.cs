@@ -3,7 +3,7 @@ using UnityEngine;
 [System.Serializable]
 public class Carta : MonoBehaviour
 {
-    public enum Raridade { Comum, Epico, Mitico, Prodigio, Celeste, Deus }
+    public enum Raridade { Comum, Epico, Mitico, Prodigio, Celeste, Scarlet, Deus }
 
     public string nome;
     public int dano;
