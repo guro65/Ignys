@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
+
 public class ChanceRaridade
 {
     public Carta.Raridade raridade;
@@ -21,19 +22,23 @@ public class Pacote : MonoBehaviour
     [Header("Chance por raridade")]
     public List<ChanceRaridade> chancesPorRaridade = new List<ChanceRaridade>();
 
+    [Header("Custos")]
+    public int custoAbrir1 = 100;
+    public int custoAbrir10 = 900;
+
     public void Abrir1()
     {
-        if (Inventario.instancia == null)
+        if (!Orbs.instancia.GastarOrbs(custoAbrir1))
         {
-            Debug.LogError("Inventario não encontrado na cena.");
+            Debug.Log("Orbs insuficientes para abrir 1 pacote.");
             return;
         }
 
         Carta cartaObtida = SortearCarta();
 
-        if (cartaObtida == null)
+        if (!Orbs.instancia.GastarOrbs(custoAbrir10))
         {
-            Debug.LogWarning("Nenhuma carta foi sorteada. Verifique a configuração do pacote.");
+            Debug.Log("Orbs insuficientes para abrir 10 pacotes.");
             return;
         }
 
