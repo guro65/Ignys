@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-
 public class ChanceRaridade
 {
     public Carta.Raridade raridade;
@@ -28,6 +27,18 @@ public class Pacote : MonoBehaviour
 
     public void Abrir1()
     {
+        if (Orbs.instancia == null)
+        {
+            Debug.LogError("Orbs não encontrado na cena.");
+            return;
+        }
+
+        if (Inventario.instancia == null)
+        {
+            Debug.LogError("Inventario não encontrado na cena.");
+            return;
+        }
+
         if (!Orbs.instancia.GastarOrbs(custoAbrir1))
         {
             Debug.Log("Orbs insuficientes para abrir 1 pacote.");
@@ -36,9 +47,9 @@ public class Pacote : MonoBehaviour
 
         Carta cartaObtida = SortearCarta();
 
-        if (!Orbs.instancia.GastarOrbs(custoAbrir10))
+        if (cartaObtida == null)
         {
-            Debug.Log("Orbs insuficientes para abrir 10 pacotes.");
+            Debug.LogWarning("Nenhuma carta foi sorteada. Verifique a configuração do pacote.");
             return;
         }
 
@@ -49,9 +60,21 @@ public class Pacote : MonoBehaviour
 
     public void Abrir10()
     {
+        if (Orbs.instancia == null)
+        {
+            Debug.LogError("Orbs não encontrado na cena.");
+            return;
+        }
+
         if (Inventario.instancia == null)
         {
             Debug.LogError("Inventario não encontrado na cena.");
+            return;
+        }
+
+        if (!Orbs.instancia.GastarOrbs(custoAbrir10))
+        {
+            Debug.Log("Orbs insuficientes para abrir 10 pacotes.");
             return;
         }
 
@@ -67,6 +90,16 @@ public class Pacote : MonoBehaviour
         }
 
         Debug.Log($"Pacote {nomePacote} abriu 10 cartas.");
+    }
+
+    public Carta SortearCartaSemCusto()
+    {
+        return SortearCarta();
+    }
+
+    public List<Carta> ObterCartasDisponiveis()
+    {
+        return cartasDisponiveis;
     }
 
     private Carta SortearCarta()
