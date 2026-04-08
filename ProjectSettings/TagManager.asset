@@ -8,6 +8,8 @@ TagManager:
   - SlotDackPlayer
   - SlotTabuleiroPlayer
   - SlotDackInimigo
+  - CartaPlayer
+  - CartaInimigo
   layers:
   - Default
   - TransparentFX

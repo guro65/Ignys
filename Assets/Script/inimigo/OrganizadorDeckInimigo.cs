@@ -15,6 +15,7 @@ public class OrganizadorDeckInimigo : MonoBehaviour
 
     [Header("Cartas instanciadas no deck do inimigo")]
     public List<GameObject> cartasInstanciadas = new List<GameObject>();
+    public string tagCartaInimigo = "CartaInimigo";
 
     private IEnumerator Start()
     {
@@ -94,6 +95,7 @@ public class OrganizadorDeckInimigo : MonoBehaviour
             cartaInstanciada.transform.SetParent(slotAtual);
             cartaInstanciada.transform.position = slotAtual.position;
             cartaInstanciada.transform.localScale = escalaOriginal;
+            cartaInstanciada.tag = tagCartaInimigo;
 
             cartasInstanciadas.Add(cartaInstanciada);
 
