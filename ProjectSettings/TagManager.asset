@@ -10,6 +10,7 @@ TagManager:
   - SlotDackInimigo
   - CartaPlayer
   - CartaInimigo
+  - SlotCemiterio
   layers:
   - Default
   - TransparentFX

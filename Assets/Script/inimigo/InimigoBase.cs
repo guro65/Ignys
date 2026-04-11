@@ -18,6 +18,9 @@ public class InimigoBase : MonoBehaviour
     [Min(1)] public int quantidadeCartasNoDeck = 5;
     public bool permitirCartasRepetidas = true;
 
+    [Header("Receber novas cartas durante o combate")]
+    public bool podeReceberNovasCartasDuranteCombate = false;
+
     [Header("Usado no modo FIXO e HÍBRIDO")]
     public List<Carta> cartasFixas = new List<Carta>();
 
@@ -47,6 +50,45 @@ public class InimigoBase : MonoBehaviour
         }
 
         Debug.Log($"Deck do inimigo {nomeInimigo} gerado com {deckAtual.Count} cartas.");
+    }
+
+    public Carta SortearNovaCartaDuranteCombate()
+    {
+        if (!podeReceberNovasCartasDuranteCombate)
+        {
+            Debug.Log($"O inimigo {nomeInimigo} não pode receber novas cartas durante o combate.");
+            return null;
+        }
+
+        if (pacotesPermitidos == null || pacotesPermitidos.Count == 0)
+        {
+            Debug.LogWarning($"O inimigo {nomeInimigo} não possui pacotes permitidos para receber novas cartas.");
+            return null;
+        }
+
+        int tentativas = 0;
+        int maxTentativas = 30;
+
+        while (tentativas < maxTentativas)
+        {
+            tentativas++;
+
+            Pacote pacoteEscolhido = EscolherPacoteAleatorio();
+            if (pacoteEscolhido == null)
+                continue;
+
+            Carta novaCarta = pacoteEscolhido.SortearCartaSemCusto();
+            if (novaCarta == null)
+                continue;
+
+            if (!permitirCartasRepetidas && JaExisteCartaNoDeck(novaCarta))
+                continue;
+
+            return novaCarta;
+        }
+
+        Debug.LogWarning($"O inimigo {nomeInimigo} não conseguiu sortear uma nova carta durante o combate.");
+        return null;
     }
 
     private void GerarDeckFixo()

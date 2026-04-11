@@ -161,6 +161,14 @@ public class UICombateCarta : MonoBehaviour
         combateAmigavel.CancelarEscolhaAlvo();
     }
 
+    public void BotaoResgatarCarta()
+    {
+        if (combateAmigavel == null)
+            return;
+
+        combateAmigavel.BotaoResgatarCartaPlayer();
+    }
+
     public void AtualizarHoverCartaTabuleiro()
     {
         if (cameraPrincipal == null || Mouse.current == null)

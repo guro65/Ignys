@@ -2,9 +2,14 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class CombateAmigavel : MonoBehaviour
 {
+    [Header("Referências")]
+    public ControladorInimigoNaCena controladorInimigoNaCena;
+    public UICombateCarta uiCombateCarta;
+
     [Header("Tags do Player")]
     public string tagCartaPlayer = "CartaPlayer";
     public string tagSlotDeckPlayer = "SlotDeckPlayer";
@@ -14,6 +19,9 @@ public class CombateAmigavel : MonoBehaviour
     public string tagCartaInimigo = "CartaInimigo";
     public string tagSlotDeckInimigo = "SlotDackInimigo";
     public string tagSlotTabuleiroInimigo = "SlotTabuleiroInimigo";
+
+    [Header("Tag do Cemitério")]
+    public string tagSlotCemiterio = "SlotCemiterio";
 
     [Header("Estado das cartas do Player")]
     public List<GameObject> cartasPlayerNoDeck = new List<GameObject>();
@@ -28,13 +36,38 @@ public class CombateAmigavel : MonoBehaviour
     public bool turnoDoInimigo = false;
     public bool inimigoExecutandoTurno = false;
 
-    [Header("UI da carta")]
-    public UICombateCarta uiCombateCarta;
+    [Header("Energia do Player")]
+    public int energiaMaximaPlayer = 5;
+    public int energiaAtualPlayer = 5;
+
+    [Range(0f, 100f)]
+    public float chanceRecuperarEnergiaPlayer = 50f;
+
+    [Header("Energia do Inimigo")]
+    public int energiaMaximaInimigo = 5;
+    public int energiaAtualInimigo = 5;
+
+    [Range(0f, 100f)]
+    public float chanceRecuperarEnergiaInimigo = 50f;
+
+    [Header("Pontos de Resgate")]
+    public int pontosResgatarPlayer = 0;
+    public int pontosResgatarInimigo = 0;
+
+    [Header("Contadores de turno para recuperar energia")]
+    public int contadorTurnosPlayer = 0;
+    public int contadorTurnosInimigo = 0;
+
+    [Header("UI de Turno")]
+    public TMP_Text textoTurno;
+
+    [Header("UI opcional de recursos")]
+    public TMP_Text textoEnergiaPlayer;
+    public TMP_Text textoEnergiaInimigo;
+    public TMP_Text textoResgatarPlayer;
+    public TMP_Text textoResgatarInimigo;
 
     [Header("Ajustes da IA")]
-    [Range(0f, 1f)] public float chanceBaseDeColocarCarta = 0.75f;
-    [Range(0f, 1f)] public float chanceDeRecuarCarta = 0.20f;
-    [Range(0f, 1f)] public float chanceExtraDeAtacar = 0.85f;
     public float tempoEntreAcoesInimigo = 0.5f;
 
     private GameObject cartaSendoArrastada;
@@ -47,7 +80,6 @@ public class CombateAmigavel : MonoBehaviour
     private readonly HashSet<GameObject> cartasPlayerQueAtacaramNesteTurno = new HashSet<GameObject>();
     private readonly HashSet<GameObject> cartasInimigoQueAtacaramNesteTurno = new HashSet<GameObject>();
     private readonly HashSet<string> cartasPlayerConhecidasPeloInimigo = new HashSet<string>();
-
     private readonly List<AtaquePendente> ataquesPendentesDoPlayer = new List<AtaquePendente>();
 
     private bool modoEscolhaAlvo = false;
@@ -66,6 +98,8 @@ public class CombateAmigavel : MonoBehaviour
         AtualizarListasDeCartas();
         RegistrarCartasVisiveisDoPlayer();
         IniciarTurnoDoPlayer();
+        AtualizarTextoTurno();
+        AtualizarTextosDeRecursos();
     }
 
     private void Update()
@@ -123,7 +157,7 @@ public class CombateAmigavel : MonoBehaviour
 
             if (EstaEmSlotComTag(cartasPlayer[i].transform, tagSlotTabuleiroPlayer))
                 cartasPlayerNoTabuleiro.Add(cartasPlayer[i]);
-            else
+            else if (!EstaEmSlotComTag(cartasPlayer[i].transform, tagSlotCemiterio))
                 cartasPlayerNoDeck.Add(cartasPlayer[i]);
         }
 
@@ -135,7 +169,7 @@ public class CombateAmigavel : MonoBehaviour
 
             if (EstaEmSlotComTag(cartasInimigo[i].transform, tagSlotTabuleiroInimigo))
                 cartasInimigoNoTabuleiro.Add(cartasInimigo[i]);
-            else
+            else if (!EstaEmSlotComTag(cartasInimigo[i].transform, tagSlotCemiterio))
                 cartasInimigoNoDeck.Add(cartasInimigo[i]);
         }
     }
@@ -189,6 +223,17 @@ public class CombateAmigavel : MonoBehaviour
 
     private void SoltarCartaPlayer()
     {
+        Collider2D slotCemiterio = EncontrarSlotMaisProximo(cartaSendoArrastada.transform.position, tagSlotCemiterio);
+
+        if (slotCemiterio != null)
+        {
+            TentarDescartarCartaPlayer(cartaSendoArrastada);
+            cartaSendoArrastada = null;
+            estaArrastandoCarta = false;
+            AtualizarListasDeCartas();
+            return;
+        }
+
         Collider2D slotEncontrado = EncontrarSlotMaisProximo(cartaSendoArrastada.transform.position, tagSlotTabuleiroPlayer);
 
         if (slotEncontrado != null)
@@ -228,6 +273,145 @@ public class CombateAmigavel : MonoBehaviour
         carta.transform.SetParent(parentOriginal);
         carta.transform.position = posicaoOriginal;
         carta.transform.localScale = escalaOriginal;
+    }
+
+    private void TentarDescartarCartaPlayer(GameObject carta)
+    {
+        if (!turnoDoPlayer)
+        {
+            VoltarCartaParaOrigem(carta, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
+            return;
+        }
+
+        if (energiaAtualPlayer <= 0)
+        {
+            Debug.Log("Player sem energia para descartar carta.");
+            VoltarCartaParaOrigem(carta, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
+            return;
+        }
+
+        energiaAtualPlayer--;
+        pontosResgatarPlayer++;
+        AtualizarTextosDeRecursos();
+
+        Debug.Log($"Player descartou {carta.name}. Energia restante: {energiaAtualPlayer}. Pontos de resgate: {pontosResgatarPlayer}");
+
+        MoverCartaParaCemiterio(carta);
+    }
+
+    private void TentarDescartarCartaInimigo(GameObject carta)
+    {
+        if (!turnoDoInimigo)
+            return;
+
+        if (carta == null || !carta.CompareTag(tagCartaInimigo))
+            return;
+
+        if (energiaAtualInimigo <= 0)
+            return;
+
+        energiaAtualInimigo--;
+        pontosResgatarInimigo++;
+        AtualizarTextosDeRecursos();
+
+        Debug.Log($"Inimigo descartou {carta.name}. Energia restante: {energiaAtualInimigo}. Pontos de resgate: {pontosResgatarInimigo}");
+
+        MoverCartaParaCemiterio(carta);
+    }
+
+    public void BotaoResgatarCartaPlayer()
+    {
+        ResgatarCartaPlayer();
+    }
+
+    public void ResgatarCartaPlayer()
+    {
+        if (!turnoDoPlayer)
+        {
+            Debug.Log("Só pode resgatar carta no turno do player.");
+            return;
+        }
+
+        if (pontosResgatarPlayer <= 0)
+        {
+            Debug.Log("Player sem pontos de resgate.");
+            return;
+        }
+
+        Transform slotLivre = EncontrarSlotLivre(tagSlotDeckPlayer);
+        if (slotLivre == null)
+        {
+            Debug.Log("Player não possui slot livre no deck para resgatar carta.");
+            return;
+        }
+
+        if (Inventario.instancia == null || Inventario.instancia.cartasObtidas.Count == 0)
+        {
+            Debug.LogWarning("Inventário do player vazio.");
+            return;
+        }
+
+        int indice = Random.Range(0, Inventario.instancia.cartasObtidas.Count);
+        Carta cartaPrefab = Inventario.instancia.cartasObtidas[indice];
+
+        if (cartaPrefab == null)
+            return;
+
+        GameObject cartaInstanciada = Instantiate(cartaPrefab.gameObject);
+        Vector3 escala = cartaInstanciada.transform.localScale;
+
+        cartaInstanciada.transform.SetParent(slotLivre);
+        cartaInstanciada.transform.position = slotLivre.position;
+        cartaInstanciada.transform.localScale = escala;
+        cartaInstanciada.tag = tagCartaPlayer;
+
+        pontosResgatarPlayer--;
+        AtualizarTextosDeRecursos();
+        AtualizarListasDeCartas();
+
+        Debug.Log($"Player resgatou a carta {cartaPrefab.nome}.");
+    }
+
+    private bool ResgatarCartaInimigo()
+    {
+        if (!turnoDoInimigo)
+            return false;
+
+        if (pontosResgatarInimigo <= 0)
+            return false;
+
+        if (energiaAtualInimigo <= 0)
+            return false;
+
+        if (controladorInimigoNaCena == null || controladorInimigoNaCena.inimigoAtual == null)
+            return false;
+
+        if (!controladorInimigoNaCena.inimigoAtual.podeReceberNovasCartasDuranteCombate)
+            return false;
+
+        Transform slotLivre = EncontrarSlotLivre(tagSlotDeckInimigo);
+        if (slotLivre == null)
+            return false;
+
+        Carta cartaPrefab = controladorInimigoNaCena.inimigoAtual.SortearNovaCartaDuranteCombate();
+        if (cartaPrefab == null)
+            return false;
+
+        GameObject cartaInstanciada = Instantiate(cartaPrefab.gameObject);
+        Vector3 escala = cartaInstanciada.transform.localScale;
+
+        cartaInstanciada.transform.SetParent(slotLivre);
+        cartaInstanciada.transform.position = slotLivre.position;
+        cartaInstanciada.transform.localScale = escala;
+        cartaInstanciada.tag = tagCartaInimigo;
+
+        energiaAtualInimigo--;
+        pontosResgatarInimigo--;
+        AtualizarTextosDeRecursos();
+        AtualizarListasDeCartas();
+
+        Debug.Log($"Inimigo resgatou a carta {cartaPrefab.nome}.");
+        return true;
     }
 
     public void VoltarCartaPlayerParaDeck(GameObject carta)
@@ -391,6 +575,12 @@ public class CombateAmigavel : MonoBehaviour
         turnoDoPlayer = false;
         turnoDoInimigo = true;
 
+        contadorTurnosInimigo++;
+        TentarRecuperarEnergiaInimigo();
+
+        AtualizarTextoTurno();
+        AtualizarTextosDeRecursos();
+
         StartCoroutine(ExecutarTurnoDoInimigo());
     }
 
@@ -415,6 +605,34 @@ public class CombateAmigavel : MonoBehaviour
         ataquesPendentesDoPlayer.Clear();
     }
 
+    private void AtualizarTextoTurno()
+    {
+        if (textoTurno == null)
+            return;
+
+        if (turnoDoPlayer)
+            textoTurno.text = "Turno do Player";
+        else if (turnoDoInimigo)
+            textoTurno.text = "Turno do Inimigo";
+        else
+            textoTurno.text = "Turno indefinido";
+    }
+
+    private void AtualizarTextosDeRecursos()
+    {
+        if (textoEnergiaPlayer != null)
+            textoEnergiaPlayer.text = $"Energia Player: {energiaAtualPlayer}/{energiaMaximaPlayer}";
+
+        if (textoEnergiaInimigo != null)
+            textoEnergiaInimigo.text = $"Energia Inimigo: {energiaAtualInimigo}/{energiaMaximaInimigo}";
+
+        if (textoResgatarPlayer != null)
+            textoResgatarPlayer.text = $"Resgatar Player: {pontosResgatarPlayer}";
+
+        if (textoResgatarInimigo != null)
+            textoResgatarInimigo.text = $"Resgatar Inimigo: {pontosResgatarInimigo}";
+    }
+
     private IEnumerator ExecutarTurnoDoInimigo()
     {
         inimigoExecutandoTurno = true;
@@ -424,12 +642,9 @@ public class CombateAmigavel : MonoBehaviour
 
         yield return new WaitForSeconds(tempoEntreAcoesInimigo);
 
-        int slotsLivresInimigo = ContarSlotsLivres(tagSlotTabuleiroInimigo);
-        bool playerTemCartasNoTabuleiro = cartasPlayerNoTabuleiro.Count > 0;
+        int quantidadeParaColocar = CalcularQuantidadeIdealDeCartasParaColocar();
 
-        int quantidadeDeColocacoes = DefinirQuantidadeDeJogadasDoInimigo(slotsLivresInimigo, playerTemCartasNoTabuleiro);
-
-        for (int i = 0; i < quantidadeDeColocacoes; i++)
+        for (int i = 0; i < quantidadeParaColocar; i++)
         {
             bool colocou = InimigoTentaColocarCartaNoTabuleiro();
             AtualizarListasDeCartas();
@@ -440,64 +655,79 @@ public class CombateAmigavel : MonoBehaviour
             yield return new WaitForSeconds(tempoEntreAcoesInimigo);
         }
 
-        if (cartasInimigoNoTabuleiro.Count > 0 && Random.value < chanceDeRecuarCarta)
+        if (DeveDescartarParaResgatar())
         {
-            InimigoTentaRecuarCarta();
+            InimigoDescartaCartaDoDeckParaResgatar();
             AtualizarListasDeCartas();
+            AtualizarTextosDeRecursos();
             yield return new WaitForSeconds(tempoEntreAcoesInimigo);
         }
 
-        if (cartasPlayerNoTabuleiro.Count > 0)
+        if (pontosResgatarInimigo > 0)
         {
-            for (int i = 0; i < cartasInimigoNoTabuleiro.Count; i++)
+            bool resgatou = ResgatarCartaInimigo();
+            if (resgatou)
             {
-                GameObject atacante = cartasInimigoNoTabuleiro[i];
+                AtualizarListasDeCartas();
+                AtualizarTextosDeRecursos();
+                yield return new WaitForSeconds(tempoEntreAcoesInimigo);
+            }
+        }
 
-                if (atacante == null)
-                    continue;
+        for (int i = 0; i < cartasInimigoNoTabuleiro.Count; i++)
+        {
+            GameObject atacante = cartasInimigoNoTabuleiro[i];
 
-                if (cartasInimigoQueAtacaramNesteTurno.Contains(atacante))
-                    continue;
+            if (atacante == null)
+                continue;
 
-                if (!EstaEmSlotComTag(atacante.transform, tagSlotTabuleiroInimigo))
-                    continue;
+            if (cartasInimigoQueAtacaramNesteTurno.Contains(atacante))
+                continue;
 
-                if (Random.value > chanceExtraDeAtacar)
-                    continue;
+            if (!EstaEmSlotComTag(atacante.transform, tagSlotTabuleiroInimigo))
+                continue;
 
-                GameObject alvoEscolhido = EscolherAlvoEstrategicoDoPlayer(atacante);
+            GameObject alvoEscolhido = EscolherAlvoEstrategicoDoPlayer(atacante);
 
-                if (alvoEscolhido != null)
-                {
-                    AplicarAtaque(atacante, alvoEscolhido);
-                    cartasInimigoQueAtacaramNesteTurno.Add(atacante);
-                    AtualizarListasDeCartas();
-                    yield return new WaitForSeconds(tempoEntreAcoesInimigo);
-                }
+            if (alvoEscolhido != null)
+            {
+                AplicarAtaque(atacante, alvoEscolhido);
+                cartasInimigoQueAtacaramNesteTurno.Add(atacante);
+
+                AtualizarListasDeCartas();
+                yield return new WaitForSeconds(tempoEntreAcoesInimigo);
             }
         }
 
         EncerrarTurnoDoInimigo();
     }
 
-    private int DefinirQuantidadeDeJogadasDoInimigo(int slotsLivresInimigo, bool playerTemCartasNoTabuleiro)
+    private int CalcularQuantidadeIdealDeCartasParaColocar()
     {
-        if (slotsLivresInimigo <= 0 || cartasInimigoNoDeck.Count <= 0)
+        AtualizarListasDeCartas();
+
+        int slotsLivres = ContarSlotsLivres(tagSlotTabuleiroInimigo);
+        int cartasNoDeck = cartasInimigoNoDeck.Count;
+
+        if (slotsLivres <= 0 || cartasNoDeck <= 0)
             return 0;
 
-        int quantidade = 0;
+        int cartasPlayerCampo = cartasPlayerNoTabuleiro.Count;
+        int cartasInimigoCampo = cartasInimigoNoTabuleiro.Count;
 
-        if (playerTemCartasNoTabuleiro)
-        {
-            quantidade = Random.value < chanceBaseDeColocarCarta ? Random.Range(1, Mathf.Min(3, slotsLivresInimigo + 1)) : 0;
-        }
-        else
-        {
-            quantidade = Random.value < 0.50f ? 1 : 0;
-        }
+        if (cartasPlayerCampo > cartasInimigoCampo)
+            return Mathf.Min(slotsLivres, cartasNoDeck, 2);
 
-        quantidade = Mathf.Min(quantidade, cartasInimigoNoDeck.Count);
-        return quantidade;
+        if (cartasInimigoCampo == 0)
+            return Mathf.Min(1, Mathf.Min(slotsLivres, cartasNoDeck));
+
+        if (cartasInimigoCampo < 2 && cartasNoDeck > 0)
+            return Mathf.Min(1, Mathf.Min(slotsLivres, cartasNoDeck));
+
+        if (Random.value < 0.45f)
+            return Mathf.Min(1, Mathf.Min(slotsLivres, cartasNoDeck));
+
+        return 0;
     }
 
     private bool InimigoTentaColocarCartaNoTabuleiro()
@@ -521,15 +751,39 @@ public class CombateAmigavel : MonoBehaviour
         return true;
     }
 
-    private GameObject EscolherCartaDoDeckDoInimigoParaJogar()
+    private bool DeveDescartarParaResgatar()
     {
+        if (controladorInimigoNaCena == null || controladorInimigoNaCena.inimigoAtual == null)
+            return false;
+
+        if (!controladorInimigoNaCena.inimigoAtual.podeReceberNovasCartasDuranteCombate)
+            return false;
+
+        if (energiaAtualInimigo <= 0)
+            return false;
+
+        if (pontosResgatarInimigo > 0)
+            return false;
+
+        Transform slotLivreNoDeck = EncontrarSlotLivre(tagSlotDeckInimigo);
+        if (slotLivreNoDeck != null)
+            return false;
+
         if (cartasInimigoNoDeck.Count == 0)
-            return null;
+            return false;
 
-        GameObject melhorCarta = null;
-        int melhorPontuacao = int.MinValue;
+        return true;
+    }
 
-        bool playerTemCartas = cartasPlayerNoTabuleiro.Count > 0;
+    private void InimigoDescartaCartaDoDeckParaResgatar()
+    {
+        AtualizarListasDeCartas();
+
+        if (cartasInimigoNoDeck.Count == 0)
+            return;
+
+        GameObject piorCarta = null;
+        int piorPontuacao = int.MaxValue;
 
         for (int i = 0; i < cartasInimigoNoDeck.Count; i++)
         {
@@ -541,50 +795,7 @@ public class CombateAmigavel : MonoBehaviour
             if (carta == null)
                 continue;
 
-            int pontuacao = carta.dano + carta.vida + carta.defesa;
-
-            if (playerTemCartas)
-                pontuacao += carta.dano * 2;
-            else
-                pontuacao += carta.vida;
-
-            pontuacao += Random.Range(0, 6);
-
-            if (pontuacao > melhorPontuacao)
-            {
-                melhorPontuacao = pontuacao;
-                melhorCarta = cartaObj;
-            }
-        }
-
-        return melhorCarta;
-    }
-
-    private void InimigoTentaRecuarCarta()
-    {
-        AtualizarListasDeCartas();
-
-        if (cartasInimigoNoTabuleiro.Count == 0)
-            return;
-
-        Transform slotLivreDeck = EncontrarSlotLivre(tagSlotDeckInimigo);
-        if (slotLivreDeck == null)
-            return;
-
-        GameObject piorCarta = null;
-        int piorPontuacao = int.MaxValue;
-
-        for (int i = 0; i < cartasInimigoNoTabuleiro.Count; i++)
-        {
-            GameObject cartaObj = cartasInimigoNoTabuleiro[i];
-            if (cartaObj == null)
-                continue;
-
-            Carta carta = cartaObj.GetComponent<Carta>();
-            if (carta == null)
-                continue;
-
-            int pontuacao = carta.vida + carta.defesa + Random.Range(0, 4);
+            int pontuacao = carta.dano + carta.vida + carta.defesa + Random.Range(0, 4);
 
             if (pontuacao < piorPontuacao)
             {
@@ -596,12 +807,76 @@ public class CombateAmigavel : MonoBehaviour
         if (piorCarta == null)
             return;
 
-        Vector3 escala = piorCarta.transform.localScale;
-        piorCarta.transform.SetParent(slotLivreDeck);
-        piorCarta.transform.position = slotLivreDeck.position;
-        piorCarta.transform.localScale = escala;
+        TentarDescartarCartaInimigo(piorCarta);
+    }
 
-        Debug.Log($"Inimigo recuou a carta {piorCarta.name} para o deck.");
+    private GameObject EscolherCartaDoDeckDoInimigoParaJogar()
+    {
+        if (cartasInimigoNoDeck.Count == 0)
+            return null;
+
+        GameObject melhorCarta = null;
+        int melhorPontuacao = int.MinValue;
+
+        bool playerTemCartas = cartasPlayerNoTabuleiro.Count > 0;
+
+        int maiorDanoPlayer = 0;
+        int maiorVidaPlayer = 0;
+
+        for (int i = 0; i < cartasPlayerNoTabuleiro.Count; i++)
+        {
+            if (cartasPlayerNoTabuleiro[i] == null)
+                continue;
+
+            Carta cartaPlayer = cartasPlayerNoTabuleiro[i].GetComponent<Carta>();
+            if (cartaPlayer == null)
+                continue;
+
+            if (cartaPlayer.dano > maiorDanoPlayer)
+                maiorDanoPlayer = cartaPlayer.dano;
+
+            if (cartaPlayer.vida > maiorVidaPlayer)
+                maiorVidaPlayer = cartaPlayer.vida;
+        }
+
+        for (int i = 0; i < cartasInimigoNoDeck.Count; i++)
+        {
+            GameObject cartaObj = cartasInimigoNoDeck[i];
+            if (cartaObj == null)
+                continue;
+
+            Carta carta = cartaObj.GetComponent<Carta>();
+            if (carta == null)
+                continue;
+
+            int pontuacao = 0;
+            pontuacao += carta.dano * 4;
+            pontuacao += carta.vida * 2;
+            pontuacao += carta.defesa * 2;
+
+            if (playerTemCartas)
+            {
+                if (carta.dano >= maiorVidaPlayer)
+                    pontuacao += 20;
+
+                if (carta.defesa >= maiorDanoPlayer / 2)
+                    pontuacao += 10;
+            }
+            else
+            {
+                pontuacao += carta.dano * 2;
+            }
+
+            pontuacao += Random.Range(0, 4);
+
+            if (pontuacao > melhorPontuacao)
+            {
+                melhorPontuacao = pontuacao;
+                melhorCarta = cartaObj;
+            }
+        }
+
+        return melhorCarta;
     }
 
     private GameObject EscolherAlvoEstrategicoDoPlayer(GameObject atacanteInimigo)
@@ -613,8 +888,11 @@ public class CombateAmigavel : MonoBehaviour
         if (atacante == null)
             return null;
 
-        GameObject melhorAlvo = null;
-        int melhorPontuacao = int.MinValue;
+        GameObject alvoParaFinalizar = null;
+        int melhorPontuacaoFinalizacao = int.MinValue;
+
+        GameObject alvoMaisPerigoso = null;
+        int melhorPontuacaoPerigo = int.MinValue;
 
         for (int i = 0; i < cartasPlayerNoTabuleiro.Count; i++)
         {
@@ -627,50 +905,120 @@ public class CombateAmigavel : MonoBehaviour
                 continue;
 
             int danoReal = Mathf.Max(0, atacante.dano - alvo.defesa);
-            int pontuacao = 0;
 
             if (danoReal >= alvo.vida)
-                pontuacao += 1000;
-
-            pontuacao += danoReal * 10;
-            pontuacao += alvo.dano * 4;
-            pontuacao += alvo.vida;
-            pontuacao += Random.Range(0, 10);
-
-            if (pontuacao > melhorPontuacao)
             {
-                melhorPontuacao = pontuacao;
-                melhorAlvo = alvoObj;
+                int pontuacaoFinalizacao = 1000 + alvo.dano * 8 + alvo.vida + Random.Range(0, 6);
+
+                if (pontuacaoFinalizacao > melhorPontuacaoFinalizacao)
+                {
+                    melhorPontuacaoFinalizacao = pontuacaoFinalizacao;
+                    alvoParaFinalizar = alvoObj;
+                }
+            }
+
+            int pontuacaoPerigo = alvo.dano * 10 + alvo.vida * 2 + Mathf.Max(0, danoReal) * 6 + Random.Range(0, 5);
+
+            if (pontuacaoPerigo > melhorPontuacaoPerigo)
+            {
+                melhorPontuacaoPerigo = pontuacaoPerigo;
+                alvoMaisPerigoso = alvoObj;
             }
         }
 
-        return melhorAlvo;
+        if (alvoParaFinalizar != null)
+            return alvoParaFinalizar;
+
+        return alvoMaisPerigoso;
+    }
+
+    private int CalcularDanoFinal(int danoAtacante, int defesaAlvo)
+    {
+        int danoBase = Mathf.Max(0, danoAtacante);
+        int defesaBase = Mathf.Max(0, defesaAlvo);
+
+        int danoFinal = danoBase - defesaBase;
+
+        if (danoFinal < 0)
+            danoFinal = 0;
+
+        return danoFinal;
     }
 
     private void AplicarAtaque(GameObject atacanteObj, GameObject alvoObj)
     {
         if (atacanteObj == null || alvoObj == null)
+        {
+            Debug.LogWarning("Ataque cancelado: atacante ou alvo nulo.");
             return;
+        }
+
+        if (!CartaPodeReceberDano(atacanteObj))
+        {
+            Debug.LogWarning("Ataque cancelado: atacante inválido.");
+            return;
+        }
+
+        if (!CartaPodeReceberDano(alvoObj))
+        {
+            Debug.LogWarning("Ataque cancelado: alvo inválido.");
+            return;
+        }
 
         Carta atacante = atacanteObj.GetComponent<Carta>();
         Carta alvo = alvoObj.GetComponent<Carta>();
 
         if (atacante == null || alvo == null)
+        {
+            Debug.LogWarning("Ataque cancelado: componente Carta não encontrado.");
             return;
+        }
 
-        int danoRecebido = Mathf.Max(0, atacante.dano - alvo.defesa);
-        alvo.vida -= danoRecebido;
+        int danoAtacante = Mathf.Max(0, atacante.dano);
+        int defesaAlvo = Mathf.Max(0, alvo.defesa);
+        int vidaAntes = Mathf.Max(0, alvo.vida);
 
-        Debug.Log($"{atacante.nome} atacou {alvo.nome}. Dano base: {atacante.dano} | Defesa do alvo: {alvo.defesa} | Dano final: {danoRecebido} | Vida restante: {alvo.vida}");
+        int danoFinal = CalcularDanoFinal(danoAtacante, defesaAlvo);
+
+        alvo.vida -= danoFinal;
+
+        if (alvo.vida < 0)
+            alvo.vida = 0;
+
+        Debug.Log(
+            $"ATAQUE -> {atacante.nome} atacou {alvo.nome} | " +
+            $"Dano do atacante: {danoAtacante} | " +
+            $"Defesa do alvo: {defesaAlvo} | " +
+            $"Vida antes: {vidaAntes} | " +
+            $"Dano final: {danoFinal} | " +
+            $"Vida depois: {alvo.vida}"
+        );
 
         if (alvo.vida <= 0)
         {
-            Debug.Log($"{alvo.nome} foi destruída nesta cena.");
+            Debug.Log($"{alvo.nome} foi derrotada e enviada ao cemitério.");
+
             if (cartaInimigoAlvoSelecionada == alvoObj)
                 cartaInimigoAlvoSelecionada = null;
 
-            Destroy(alvoObj);
+            MoverCartaParaCemiterio(alvoObj);
         }
+    }
+
+    private bool CartaPodeReceberDano(GameObject cartaObj)
+    {
+        if (cartaObj == null)
+            return false;
+
+        Carta carta = cartaObj.GetComponent<Carta>();
+        if (carta == null)
+            return false;
+
+        // Não recebe dano se já estiver no cemitério
+        if (EstaEmSlotComTag(cartaObj.transform, tagSlotCemiterio))
+            return false;
+
+        return true;
     }
 
     private void EncerrarTurnoDoInimigo()
@@ -684,7 +1032,59 @@ public class CombateAmigavel : MonoBehaviour
         turnoDoPlayer = true;
         inimigoExecutandoTurno = false;
 
+        contadorTurnosPlayer++;
+        TentarRecuperarEnergiaPlayer();
+
+        AtualizarTextoTurno();
+        AtualizarTextosDeRecursos();
+
         Debug.Log("Turno do inimigo encerrado. Agora é o turno do player.");
+    }
+
+    private void TentarRecuperarEnergiaPlayer()
+    {
+        if (contadorTurnosPlayer < 2)
+            return;
+
+        contadorTurnosPlayer = 0;
+
+        if (energiaAtualPlayer >= energiaMaximaPlayer)
+            return;
+
+        float rolagem = Random.Range(0f, 100f);
+
+        if (rolagem <= chanceRecuperarEnergiaPlayer)
+        {
+            energiaAtualPlayer++;
+            Debug.Log("Player recuperou 1 token de energia.");
+        }
+        else
+        {
+            Debug.Log("Player não recuperou energia desta vez.");
+        }
+    }
+
+    private void TentarRecuperarEnergiaInimigo()
+    {
+        if (contadorTurnosInimigo < 2)
+            return;
+
+        contadorTurnosInimigo = 0;
+
+        if (energiaAtualInimigo >= energiaMaximaInimigo)
+            return;
+
+        float rolagem = Random.Range(0f, 100f);
+
+        if (rolagem <= chanceRecuperarEnergiaInimigo)
+        {
+            energiaAtualInimigo++;
+            Debug.Log("Inimigo recuperou 1 token de energia.");
+        }
+        else
+        {
+            Debug.Log("Inimigo não recuperou energia desta vez.");
+        }
     }
 
     private bool JaExisteAtaquePendente(GameObject atacante)
@@ -816,6 +1216,49 @@ public class CombateAmigavel : MonoBehaviour
             sr.color = Color.white;
     }
 
+    private void MoverCartaParaCemiterio(GameObject carta)
+    {
+        if (carta == null)
+            return;
+
+        GameObject[] cemiterios = GameObject.FindGameObjectsWithTag(tagSlotCemiterio);
+        if (cemiterios == null || cemiterios.Length == 0)
+        {
+            Debug.LogWarning("Nenhum SlotCemiterio foi encontrado.");
+            Destroy(carta);
+            return;
+        }
+
+        Transform cemiterio = cemiterios[0].transform;
+        Vector3 escalaOriginal = carta.transform.localScale;
+
+        int indiceNoCemiterio = cemiterio.childCount;
+        Vector3 offset = new Vector3(0.15f * indiceNoCemiterio, 0f, 0f);
+
+        carta.transform.SetParent(cemiterio);
+        carta.transform.position = cemiterio.position + offset;
+        carta.transform.localScale = escalaOriginal;
+
+        Collider2D collider = carta.GetComponent<Collider2D>();
+        if (collider != null)
+            collider.enabled = false;
+
+        SpriteRenderer sr = carta.GetComponent<SpriteRenderer>();
+        if (sr != null)
+            sr.color = new Color(0.45f, 0.45f, 0.45f, 1f);
+
+        Carta cartaComp = carta.GetComponent<Carta>();
+        if (cartaComp != null)
+        {
+            cartaComp.vida = 0;
+        }
+
+        if (uiCombateCarta != null && uiCombateCarta.cartaSelecionada == carta)
+        {
+            uiCombateCarta.FecharPainelCarta();
+        }
+    }
+
     private void IniciarTurnoDoPlayer()
     {
         turnoDoPlayer = true;
@@ -823,5 +1266,8 @@ public class CombateAmigavel : MonoBehaviour
         inimigoExecutandoTurno = false;
         cartasPlayerQueAtacaramNesteTurno.Clear();
         ataquesPendentesDoPlayer.Clear();
+
+        AtualizarTextoTurno();
+        AtualizarTextosDeRecursos();
     }
 }
