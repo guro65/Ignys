@@ -110,6 +110,18 @@ MonoBehaviour:
   vida: 25
   defesa: 5
   raridade: 1
+  quantidadeHabilidades: 1
+  habilidades: []
+  efeitoSobrecargaAtivo: 0
+  turnosSobrecargaRestantes: 0
+  efeitoFogoAtivo: 0
+  turnosFogoRestantes: 0
+  danoFogoPorTurno: 0
+  efeitoSangramentoAtivo: 0
+  turnosSangramentoRestantes: 0
+  danoSangramentoPorTurno: 0
+  disfarceAtivo: 0
+  spriteOriginalAntesDoDisfarce: {fileID: 0}
 --- !u!61 &2065904030014330892
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -110,6 +110,40 @@ MonoBehaviour:
   vida: 38
   defesa: 3
   raridade: 2
+  quantidadeHabilidades: 2
+  habilidades:
+  - nomeHabilidade: Um amigo?
+    descricaoHabilidade: Escolha uma carta do seu deck para receber +10 de dano!
+    tipoHabilidade: 3
+    alvoHabilidade: 2
+    tipoBuff: 2
+    valorHabilidade: 10
+    efeitos: []
+    duracaoHabilidadeTurnos: 2
+    usarCooldown: 1
+    cooldownTurnos: 10
+    habilidadeEspecial: 0
+    exigirSacrificioCartas: 0
+    quantidadeCartasParaSacrificar: 0
+    exigirDanoTotalCausado: 0
+    danoTotalNecessario: 0
+    exigirVidaMenorOuIgual: 0
+    vidaNecessariaMenorOuIgual: 0
+    usarCooldownEspecial: 0
+    cooldownEspecialTurnos: 0
+    ativacaoEmConjunto: 0
+    cartaNecessariaNoTabuleiro: {fileID: 0}
+    nomeBotaoConjunto: Habilidade em Conjunto
+  efeitoSobrecargaAtivo: 0
+  turnosSobrecargaRestantes: 0
+  efeitoFogoAtivo: 0
+  turnosFogoRestantes: 0
+  danoFogoPorTurno: 0
+  efeitoSangramentoAtivo: 0
+  turnosSangramentoRestantes: 0
+  danoSangramentoPorTurno: 0
+  disfarceAtivo: 0
+  spriteOriginalAntesDoDisfarce: {fileID: 0}
 --- !u!61 &5490965958947073812
 BoxCollider2D:
   m_ObjectHideFlags: 0

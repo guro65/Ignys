@@ -110,6 +110,13 @@ MonoBehaviour:
   vida: 15
   defesa: 3
   raridade: 0
+  possuiHabilidade: 1
+  nomeHabilidade: Florescer
+  descricaoHabilidade: Aumenta 10 de Vida da propria carta
+  tipoHabilidade: 3
+  alvoHabilidade: 1
+  tipoBuff: 1
+  valorHabilidade: 10
 --- !u!61 &1287171448032431448
 BoxCollider2D:
   m_ObjectHideFlags: 0

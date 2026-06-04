@@ -110,6 +110,22 @@ MonoBehaviour:
   vida: 25
   defesa: 10
   raridade: 5
+  quantidadeHabilidades: 0
+  habilidades:
+  - nomeHabilidade: 
+    descricaoHabilidade: 
+    tipoHabilidade: 0
+    alvoHabilidade: 0
+    tipoBuff: 0
+    valorHabilidade: 0
+    duracaoHabilidadeTurnos: 0
+    usarCooldown: 0
+    cooldownTurnos: 0
+    habilidadeEspecial: 0
+    tipoAtivacaoEspecial: 0
+    quantidadeCartasParaSacrificar: 0
+    danoTotalNecessario: 0
+    vidaNecessariaMenorOuIgual: 0
 --- !u!61 &5014181427208209839
 BoxCollider2D:
   m_ObjectHideFlags: 0
