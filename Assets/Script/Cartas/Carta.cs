@@ -72,9 +72,28 @@ public class HabilidadeCarta
 
     public bool EstaConfigurada()
     {
+        if (ativacaoEmConjunto)
+            return false;
+
         if ((string.IsNullOrEmpty(nomeHabilidade) || nomeHabilidade.Trim().Length == 0))
             return false;
 
+        return EstaConfiguradaComoBase();
+    }
+
+    public bool EstaConfiguradaComoConjunto()
+    {
+        if (!ativacaoEmConjunto)
+            return false;
+
+        if (cartaNecessariaNoTabuleiro == null)
+            return false;
+
+        return EstaConfiguradaComoBase();
+    }
+
+    private bool EstaConfiguradaComoBase()
+    {
         if (tipoHabilidade == TipoHabilidade.Nenhuma)
             return false;
 
@@ -112,13 +131,7 @@ public class HabilidadeCarta
 public class Carta : MonoBehaviour
 {
     public enum Raridade { Comum, Epico, Mitico, Prodigio, Celeste, Scarlet, Deus }
-
-    public enum Estrela
-    {
-        UmaEstrela = 1,
-        DuasEstrelas = 2,
-        TresEstrelas = 3
-    }
+    public enum Estrela { UmaEstrela = 1, DuasEstrelas = 2, TresEstrelas = 3 }
 
     [Header("Estatísticas da Carta")]
     public string nome;

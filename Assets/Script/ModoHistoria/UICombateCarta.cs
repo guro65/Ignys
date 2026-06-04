@@ -225,7 +225,7 @@ public class UICombateCarta : MonoBehaviour
             painelConfirmacaoHabilidade.SetActive(true);
 
         if (textoNomeHabilidade != null)
-            textoNomeHabilidade.text = habilidade.nomeHabilidade;
+            textoNomeHabilidade.text = !string.IsNullOrEmpty(habilidade.nomeHabilidade) ? habilidade.nomeHabilidade : habilidade.nomeBotaoConjunto;
 
         if (textoDescricaoHabilidade != null)
             textoDescricaoHabilidade.text = habilidade.descricaoHabilidade;

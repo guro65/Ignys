@@ -1473,16 +1473,21 @@ public class CombateAmigavel : MonoBehaviour
         if (carta == null)
             return;
 
-        for (int i = 0; i < Mathf.Min(carta.quantidadeHabilidades, carta.habilidades.Count, 4); i++)
+        for (int i = 0; i < carta.habilidades.Count; i++)
         {
-            HabilidadeCarta habilidade = carta.ObterHabilidade(i);
-            if (habilidade == null || !habilidade.ativacaoEmConjunto)
+            HabilidadeCarta habilidade = carta.habilidades[i];
+            if (habilidade == null || !habilidade.EstaConfiguradaComoConjunto())
                 continue;
 
             if (!PodeUsarHabilidade(cartaObj, habilidade, i, true))
                 continue;
 
-            BotaoSelecionarHabilidadeCartaSelecionada(i);
+            habilidadePlayerSelecionada = habilidade;
+            indiceHabilidadePlayerSelecionada = i;
+            cartaPlayerSelecionadaParaHabilidade = cartaObj;
+
+            string textoEstado = ObterTextoEstadoHabilidade(cartaObj, habilidade, i);
+            uiCombateCarta.AbrirPainelConfirmacaoHabilidade(habilidade, textoEstado);
             return;
         }
 
@@ -1498,10 +1503,10 @@ public class CombateAmigavel : MonoBehaviour
         if (carta == null)
             return false;
 
-        for (int i = 0; i < Mathf.Min(carta.quantidadeHabilidades, carta.habilidades.Count, 4); i++)
+        for (int i = 0; i < carta.habilidades.Count; i++)
         {
-            HabilidadeCarta habilidade = carta.ObterHabilidade(i);
-            if (habilidade != null && habilidade.ativacaoEmConjunto && PodeUsarHabilidade(cartaObj, habilidade, i, false))
+            HabilidadeCarta habilidade = carta.habilidades[i];
+            if (habilidade != null && habilidade.EstaConfiguradaComoConjunto() && PodeUsarHabilidade(cartaObj, habilidade, i, false))
                 return true;
         }
 
@@ -1517,15 +1522,18 @@ public class CombateAmigavel : MonoBehaviour
         if (carta == null)
             return "Habilidade em Conjunto";
 
-        for (int i = 0; i < Mathf.Min(carta.quantidadeHabilidades, carta.habilidades.Count, 4); i++)
+        for (int i = 0; i < carta.habilidades.Count; i++)
         {
-            HabilidadeCarta habilidade = carta.ObterHabilidade(i);
-            if (habilidade != null && habilidade.ativacaoEmConjunto && PodeUsarHabilidade(cartaObj, habilidade, i, false))
+            HabilidadeCarta habilidade = carta.habilidades[i];
+            if (habilidade != null && habilidade.EstaConfiguradaComoConjunto() && PodeUsarHabilidade(cartaObj, habilidade, i, false))
             {
                 if (!string.IsNullOrEmpty(habilidade.nomeBotaoConjunto))
                     return habilidade.nomeBotaoConjunto;
 
-                return habilidade.nomeHabilidade;
+                if (!string.IsNullOrEmpty(habilidade.nomeHabilidade))
+                    return habilidade.nomeHabilidade;
+
+                return "Habilidade em Conjunto";
             }
         }
 
@@ -1851,7 +1859,7 @@ public class CombateAmigavel : MonoBehaviour
         if (cartaObj == null || habilidade == null)
             return false;
 
-        if (!habilidade.EstaConfigurada())
+        if (!habilidade.EstaConfigurada() && !habilidade.EstaConfiguradaComoConjunto())
             return false;
 
         if (CartaEstaParalisada(cartaObj))
@@ -1886,7 +1894,7 @@ public class CombateAmigavel : MonoBehaviour
         if (habilidade.ativacaoEmConjunto && !CartaNecessariaDeConjuntoEstaNoTabuleiro(cartaObj, habilidade))
         {
             if (mostrarAviso)
-                Debug.Log($"A habilidade {habilidade.nomeHabilidade} precisa da carta de conjunto no tabuleiro.");
+                Debug.Log($"A habilidade em conjunto precisa da carta de conjunto no tabuleiro.");
 
             return false;
         }

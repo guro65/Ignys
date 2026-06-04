@@ -106,17 +106,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Carta
   nome: Iris
+  estrelas: 1
   dano: 5
   vida: 15
   defesa: 3
   raridade: 0
-  possuiHabilidade: 1
-  nomeHabilidade: Florescer
-  descricaoHabilidade: Aumenta 10 de Vida da propria carta
-  tipoHabilidade: 3
-  alvoHabilidade: 1
-  tipoBuff: 1
-  valorHabilidade: 10
+  quantidadeHabilidades: 0
+  habilidades: []
+  efeitoSobrecargaAtivo: 0
+  turnosSobrecargaRestantes: 0
+  efeitoFogoAtivo: 0
+  turnosFogoRestantes: 0
+  danoFogoPorTurno: 0
+  efeitoSangramentoAtivo: 0
+  turnosSangramentoRestantes: 0
+  danoSangramentoPorTurno: 0
+  disfarceAtivo: 0
+  spriteOriginalAntesDoDisfarce: {fileID: 0}
 --- !u!61 &1287171448032431448
 BoxCollider2D:
   m_ObjectHideFlags: 0
