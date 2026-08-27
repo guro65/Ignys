@@ -23,6 +23,8 @@ public class SelecionadorDeInimigo : MonoBehaviour
             return;
         }
 
+        // Salva automaticamente de qual cena o jogador veio.
+        GerenciadorInimigo.instancia.DefinirCenaRetorno(SceneManager.GetActiveScene().name);
         GerenciadorInimigo.instancia.SelecionarInimigo(inimigo);
         SceneManager.LoadScene(nomeCenaCombate);
     }

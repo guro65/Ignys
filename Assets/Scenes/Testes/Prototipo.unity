@@ -1332,6 +1332,66 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &678650230
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 678650232}
+  - component: {fileID: 678650231}
+  m_Layer: 0
+  m_Name: AberturaPacote
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &678650231
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 678650230}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 158bdcc084d411049b5683c2f30049d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AberturaPacoteUI
+  duracaoEntradaPacote: 0.28
+  duracaoRasgo: 0.24
+  duracaoSepararMetades: 0.48
+  duracaoEntradaCarta: 0.32
+  duracaoSaidaCarta: 0.12
+  corFundo: {r: 0.03529412, g: 0.047058824, b: 0.078431375, a: 0.98039216}
+  corFlash: {r: 1, g: 1, b: 1, a: 1}
+  corComum: {r: 0.74509805, g: 0.7647059, b: 0.8039216, a: 1}
+  corEpico: {r: 0.60784316, g: 0.3529412, b: 0.8627451, a: 1}
+  corMitico: {r: 1, g: 0.5686275, b: 0.21568628, a: 1}
+  corProdigio: {r: 0.21568628, g: 0.8627451, b: 0.8627451, a: 1}
+  corCeleste: {r: 0.4509804, g: 0.74509805, b: 1, a: 1}
+  corScarlet: {r: 0.92156863, g: 0.13725491, b: 0.27450982, a: 1}
+  corDeus: {r: 1, g: 0.88235295, b: 0.37254903, a: 1}
+  maximoParticulas: 40
+  maximoRaios: 24
+--- !u!4 &678650232
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 678650230}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.08283, y: 0.48127, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &704202305
 GameObject:
   m_ObjectHideFlags: 0
@@ -3031,6 +3091,7 @@ MonoBehaviour:
   botaoAbrirPacote: {fileID: 904277721}
   botaoPesarPacote: {fileID: 1368510634}
   botaoFecharPacote: {fileID: 2056624698}
+  aberturaPacoteUI: {fileID: 0}
 --- !u!4 &1496179645
 Transform:
   m_ObjectHideFlags: 0
@@ -4970,6 +5031,7 @@ SceneRoots:
   - {fileID: 2068235056}
   - {fileID: 704202307}
   - {fileID: 1634065761}
+  - {fileID: 678650232}
   - {fileID: 170328703}
   - {fileID: 272971165}
   - {fileID: 2015268701}

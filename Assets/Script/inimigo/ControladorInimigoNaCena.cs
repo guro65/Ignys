@@ -9,6 +9,9 @@ public class ControladorInimigoNaCena : MonoBehaviour
     [Header("Deck do inimigo nesta batalha")]
     public List<Carta> deckInimigo = new List<Carta>();
 
+    [Header("Reserva do inimigo nesta batalha")]
+    public List<Carta> reservaInimigo = new List<Carta>();
+
     public bool deckFoiCarregado = false;
 
     private void Awake()
@@ -33,7 +36,6 @@ public class ControladorInimigoNaCena : MonoBehaviour
         }
 
         inimigoAtual = GerenciadorInimigo.instancia.inimigoSelecionado;
-
         if (inimigoAtual == null)
         {
             Debug.LogError("Falha ao carregar o inimigo atual.");
@@ -43,22 +45,21 @@ public class ControladorInimigoNaCena : MonoBehaviour
         inimigoAtual.GerarDeck();
 
         deckInimigo.Clear();
+        reservaInimigo.Clear();
 
         for (int i = 0; i < inimigoAtual.deckAtual.Count; i++)
         {
             if (inimigoAtual.deckAtual[i] != null)
-            {
                 deckInimigo.Add(inimigoAtual.deckAtual[i]);
-            }
+        }
+
+        for (int i = 0; i < inimigoAtual.reservaAtual.Count; i++)
+        {
+            if (inimigoAtual.reservaAtual[i] != null)
+                reservaInimigo.Add(inimigoAtual.reservaAtual[i]);
         }
 
         deckFoiCarregado = true;
-
-        Debug.Log($"Inimigo na cena: {inimigoAtual.nomeInimigo}");
-
-        for (int i = 0; i < deckInimigo.Count; i++)
-        {
-            Debug.Log($"Carta do inimigo [{i + 1}]: {deckInimigo[i].nome} | Raridade: {deckInimigo[i].raridade}");
-        }
+        Debug.Log($"Inimigo na cena: {inimigoAtual.nomeInimigo} | Deck: {deckInimigo.Count} | Reserva: {reservaInimigo.Count}");
     }
 }

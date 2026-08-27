@@ -106,6 +106,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Pacote
   nomePacote: 'Pacote da Alma '
   imagemPacote: {fileID: -4191793867482455471, guid: 77428902cdd4e664f99bdbb3e0c94766, type: 3}
+  corPrincipalPacote: {r: 0.19607843, g: 0.22745098, b: 0.32156864, a: 1}
+  corSecundariaPacote: {r: 0.88235295, g: 0.27450982, b: 0.37254903, a: 1}
+  corTextoPacote: {r: 1, g: 1, b: 1, a: 1}
   cartasDisponiveis:
   - {fileID: 4378131064567063481, guid: 296d007bf173fb5418736d584a06cf13, type: 3}
   - {fileID: 1236798707688586510, guid: c6248202ad374e8449e7a837632ddf2b, type: 3}

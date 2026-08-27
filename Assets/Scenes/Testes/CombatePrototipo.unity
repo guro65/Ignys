@@ -1440,9 +1440,11 @@ MonoBehaviour:
   slotCartaSelecaoPrefab: {fileID: 4787028976045537521, guid: 3f48c952186c04c408bd949426df44fc, type: 3}
   botaoConfirmar: {fileID: 954854231}
   quantidadeCartasParaSelecionar: 6
+  quantidadeCartasReserva: 3
   tagSlotDeckPlayer: SlotDackPlayer
   tagCartaPlayer: CartaPlayer
   cartasSelecionadas: []
+  cartasReservaSelecionadas: []
   slotsDeckPlayer: []
   cartasInstanciadasNoDeck: []
   preparacaoConcluida: 0
@@ -1983,6 +1985,97 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &400104832
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 400104834}
+  - component: {fileID: 400104833}
+  m_Layer: 0
+  m_Name: ResultadoDoCombate
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &400104833
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 400104832}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3075b3f2e53c71443a3b6e3546a711ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ResultadoCombateUI
+  corFundo: {r: 0.015, g: 0.02, b: 0.035, a: 0.96}
+  corVitoria: {r: 1, g: 0.82, b: 0.2, a: 1}
+  corDerrota: {r: 1, g: 0.25, b: 0.32, a: 1}
+--- !u!4 &400104834
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 400104832}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.35394, y: 1.53865, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &437503468
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 437503470}
+  - component: {fileID: 437503469}
+  m_Layer: 0
+  m_Name: SelecionarReserva
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &437503469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 437503468}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfd56601b4bb00e4fb4fbe90f3afe0c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SelecaoReservaCombateUI
+--- !u!4 &437503470
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 437503468}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.35394, y: 1.53865, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &449948405
 GameObject:
   m_ObjectHideFlags: 0
@@ -3863,6 +3956,55 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 767456660}
   m_CullTransparentMesh: 1
+--- !u!1 &767530479
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 767530481}
+  - component: {fileID: 767530480}
+  m_Layer: 0
+  m_Name: AnimacaoEntrada
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &767530480
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 767530479}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 849ebde006706d942b138e0982333a32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AnimadorEntradaDeckCombate
+  duracaoEntradaCarta: 0.32
+  intervaloEntrePares: 0.1
+  deslocamentoVertical: 0.75
+  rotacaoInicialGraus: 14
+  escalaInicialRelativa: 0.28
+--- !u!4 &767530481
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 767530479}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.88089, y: 1.86665, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &775370973
 GameObject:
   m_ObjectHideFlags: 0
@@ -3969,6 +4111,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CombateAmigavel
   controladorInimigoNaCena: {fileID: 987755660}
   uiCombateCarta: {fileID: 1270230916}
+  preparacaoCombatePlayer: {fileID: 0}
+  vidaMaximaPlayer: 30
+  vidaAtualPlayer: 30
+  vidaMaximaInimigo: 30
+  vidaAtualInimigo: 30
+  reservaPlayer: []
+  reservaInimigo: []
+  hudDuelistasUI: {fileID: 0}
+  resultadoCombateUI: {fileID: 0}
+  animadorEntradaDeck: {fileID: 0}
+  organizadorDeckInimigo: {fileID: 0}
+  cenaRetornoFallback: 
+  combateIniciado: 0
+  combateFinalizado: 0
   tagCartaPlayer: CartaPlayer
   tagSlotDeckPlayer: SlotDackPlayer
   tagSlotTabuleiroPlayer: SlotTabuleiroPlayer
@@ -3991,6 +4147,12 @@ MonoBehaviour:
   chanceRecuperarEnergiaInimigo: 50
   pontosResgatarPlayer: 0
   pontosResgatarInimigo: 0
+  maximoAcoesPorTurnoPlayer: 3
+  maximoAcoesPorTurnoInimigo: 3
+  acoesRestantesPlayer: 3
+  acoesRestantesInimigo: 3
+  maximoHabilidadesInimigoPorTurno: 1
+  cartaRecemColocadaPrecisaEsperar: 1
   contadorTurnosPlayer: 2
   contadorTurnosInimigo: 2
   textoTurno: {fileID: 792231119}
@@ -3999,6 +4161,12 @@ MonoBehaviour:
   textoResgatarPlayer: {fileID: 0}
   textoResgatarInimigo: {fileID: 0}
   tempoEntreAcoesInimigo: 0.5
+  framesEfeitoAtaquePadrao: []
+  tempoEntreFramesEfeitoAtaquePadrao: 0.08
+  deslocamentoEfeitoAtaquePadrao: {x: 0, y: 0}
+  escalaEfeitoAtaquePadrao: {x: 1, y: 1}
+  rotacaoEfeitoAtaquePadrao: 0
+  ordemRenderizacaoAcimaDaCarta: 20
 --- !u!4 &783646516
 Transform:
   m_ObjectHideFlags: 0
@@ -4934,6 +5102,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ControladorInimigoNaCena
   inimigoAtual: {fileID: 0}
   deckInimigo: []
+  reservaInimigo: []
   deckFoiCarregado: 0
 --- !u!4 &987755661
 Transform:
@@ -6061,6 +6230,7 @@ MonoBehaviour:
   - {fileID: 1777966441}
   cartasInstanciadas: []
   tagCartaInimigo: CartaInimigo
+  deckEhColocadoSomenteQuandoCombateInicia: 1
 --- !u!4 &1247529035
 Transform:
   m_ObjectHideFlags: 0
@@ -10113,6 +10283,57 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!1 &2106239708
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2106239710}
+  - component: {fileID: 2106239709}
+  m_Layer: 0
+  m_Name: HudDuelista
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2106239709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2106239708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ba12b8c4dd2e9a4fbd1975d7519316e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HUDDuelistasCombateUI
+  corPainel: {r: 0.04, g: 0.05, b: 0.08, a: 0.88}
+  corPlayer: {r: 0.25, g: 0.75, b: 1, a: 1}
+  corInimigo: {r: 1, g: 0.32, b: 0.38, a: 1}
+  corVidaCheia: {r: 0.25, g: 0.9, b: 0.35, a: 1}
+  corVidaBaixa: {r: 1, g: 0.25, b: 0.25, a: 1}
+  posicaoHUDPlayer: {x: 30, y: -180}
+  posicaoHUDInimigo: {x: -30, y: -30}
+--- !u!4 &2106239710
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2106239708}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.35394, y: 1.53865, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2106923539
 GameObject:
   m_ObjectHideFlags: 0
@@ -11910,3 +12131,7 @@ SceneRoots:
   - {fileID: 138563457}
   - {fileID: 390069928}
   - {fileID: 1416119324}
+  - {fileID: 2106239710}
+  - {fileID: 400104834}
+  - {fileID: 437503470}
+  - {fileID: 767530481}

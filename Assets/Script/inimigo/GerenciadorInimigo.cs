@@ -7,6 +7,9 @@ public class GerenciadorInimigo : MonoBehaviour
     [Header("Inimigo selecionado")]
     public InimigoBase inimigoSelecionado;
 
+    [Header("Cena para retornar após o combate")]
+    public string nomeCenaRetorno;
+
     private void Awake()
     {
         if (instancia != null && instancia != this)
@@ -29,6 +32,11 @@ public class GerenciadorInimigo : MonoBehaviour
 
         inimigoSelecionado = inimigo;
         Debug.Log($"Inimigo selecionado: {inimigo.nomeInimigo}");
+    }
+
+    public void DefinirCenaRetorno(string nomeCena)
+    {
+        nomeCenaRetorno = nomeCena;
     }
 
     public void LimparInimigoSelecionado()

@@ -46,10 +46,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InimigoBase
   nomeInimigo: Rogerio
   tipoDeck: 1
+  vidaMaximaDuelista: 30
   quantidadeCartasNoDeck: 6
+  quantidadeCartasReserva: 3
   permitirCartasRepetidas: 1
   podeReceberNovasCartasDuranteCombate: 1
   cartasFixas: []
+  cartasFixasReserva: []
   pacotesPermitidos:
   - {fileID: 861772835267265425, guid: 725a079d91f463246805a0f79f0dad43, type: 3}
+  recompensasAoDerrotar: []
+  orbsMinimosRecompensa: 100
+  orbsMaximosRecompensa: 150
+  chanceGanharPacote: 0
+  pacotesRecompensa: []
+  chanceGanharCarta: 0
+  cartasRecompensa: []
   deckAtual: []
+  reservaAtual: []

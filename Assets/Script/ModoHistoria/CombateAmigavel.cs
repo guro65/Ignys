@@ -2,13 +2,48 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using TMPro;
 
 public class CombateAmigavel : MonoBehaviour
 {
-    [Header("Refer?ncias")]
+    [Header("Referências")]
     public ControladorInimigoNaCena controladorInimigoNaCena;
     public UICombateCarta uiCombateCarta;
+    public PreparacaoCombatePlayer preparacaoCombatePlayer;
+
+    [Header("Vida dos duelistas - Combate Amigável")]
+    [Min(1)] public int vidaMaximaPlayer = 30;
+    public int vidaAtualPlayer = 30;
+    public int vidaMaximaInimigo = 30;
+    public int vidaAtualInimigo = 30;
+
+    [Header("Reservas desta batalha")]
+    [Tooltip("Preenchida automaticamente após a preparação do player.")]
+    public List<Carta> reservaPlayer = new List<Carta>();
+
+    [Tooltip("Preenchida automaticamente a partir do InimigoBase selecionado.")]
+    public List<Carta> reservaInimigo = new List<Carta>();
+
+    [Header("UI automática - opcional")]
+    [Tooltip("Pode ficar vazio. O sistema cria sozinho em tempo de execução.")]
+    public HUDDuelistasCombateUI hudDuelistasUI;
+
+    [Tooltip("Pode ficar vazio. O sistema cria sozinho em tempo de execução.")]
+    public ResultadoCombateUI resultadoCombateUI;
+
+    [Tooltip("Pode ficar vazio. Cria e anima automaticamente a entrada dos dois decks após a preparação.")]
+    public AnimadorEntradaDeckCombate animadorEntradaDeck;
+
+    [Tooltip("Opcional. Usado apenas para registrar as cartas inimigas instanciadas pelo animador.")]
+    public OrganizadorDeckInimigo organizadorDeckInimigo;
+
+    [Tooltip("Somente usado se o combate não tiver sido iniciado pelo SelecionadorDeInimigo.")]
+    public string cenaRetornoFallback = "";
+
+    [Header("Estado do combate")]
+    public bool combateIniciado = false;
+    public bool combateFinalizado = false;
 
     [Header("Tags do Player")]
     public string tagCartaPlayer = "CartaPlayer";
@@ -20,7 +55,7 @@ public class CombateAmigavel : MonoBehaviour
     public string tagSlotDeckInimigo = "SlotDackInimigo";
     public string tagSlotTabuleiroInimigo = "SlotTabuleiroInimigo";
 
-    [Header("Tag do Cemit?rio")]
+    [Header("Tag do Cemitério")]
     public string tagSlotCemiterio = "SlotCemiterio";
 
     [Header("Estado das cartas do Player")]
@@ -50,9 +85,20 @@ public class CombateAmigavel : MonoBehaviour
     [Range(0f, 100f)]
     public float chanceRecuperarEnergiaInimigo = 50f;
 
-    [Header("Pontos de Resgate")]
+    [Header("Pontos de Resgate - compatibilidade")]
+    [Tooltip("Mantidos para outros sistemas antigos. No CombateAmigavel atual, a reserva é acessada gastando uma ação, sem precisar de ponto de resgate.")]
     public int pontosResgatarPlayer = 0;
     public int pontosResgatarInimigo = 0;
+
+    [Header("Sistema de ações por turno")]
+    [Min(1)] public int maximoAcoesPorTurnoPlayer = 3;
+    [Min(1)] public int maximoAcoesPorTurnoInimigo = 3;
+    public int acoesRestantesPlayer = 3;
+    public int acoesRestantesInimigo = 3;
+    [Min(0)] public int maximoHabilidadesInimigoPorTurno = 1;
+
+    [Tooltip("Ligado: uma carta colocada no tabuleiro neste turno só poderá atacar ou usar habilidade no próximo turno daquele duelista.")]
+    public bool cartaRecemColocadaPrecisaEsperar = true;
 
     [Header("Contadores de turno para recuperar energia")]
     public int contadorTurnosPlayer = 0;
@@ -122,12 +168,15 @@ public class CombateAmigavel : MonoBehaviour
 
     private readonly HashSet<GameObject> cartasPlayerQueUsaramHabilidadeNesteTurno = new HashSet<GameObject>();
     private readonly HashSet<GameObject> cartasInimigoQueUsaramHabilidadeNesteTurno = new HashSet<GameObject>();
+    private readonly HashSet<GameObject> cartasPlayerColocadasNesteTurno = new HashSet<GameObject>();
+    private readonly HashSet<GameObject> cartasInimigoColocadasNesteTurno = new HashSet<GameObject>();
     private readonly List<BuffTemporario> buffsTemporariosAtivos = new List<BuffTemporario>();
 
     private class AtaquePendente
     {
         public GameObject atacante;
         public GameObject alvo;
+        public bool ataqueDiretoAoDuelista;
     }
 
     private class BuffTemporario
@@ -144,17 +193,132 @@ public class CombateAmigavel : MonoBehaviour
     private void Start()
     {
         cameraPrincipal = Camera.main;
+
+        if (preparacaoCombatePlayer == null)
+            preparacaoCombatePlayer = FindObjectOfType<PreparacaoCombatePlayer>();
+
+        if (controladorInimigoNaCena == null)
+            controladorInimigoNaCena = FindObjectOfType<ControladorInimigoNaCena>();
+
+        if (organizadorDeckInimigo == null)
+            organizadorDeckInimigo = FindObjectOfType<OrganizadorDeckInimigo>();
+
+        StartCoroutine(AguardarPreparacaoEIniciarCombate());
+    }
+
+    private IEnumerator AguardarPreparacaoEIniciarCombate()
+    {
+        // A preparação usa Time.timeScale = 0. Por isso aguardamos por frames, não por segundos.
+        if (preparacaoCombatePlayer != null)
+        {
+            while (!preparacaoCombatePlayer.preparacaoConcluida)
+                yield return null;
+        }
+        else
+        {
+            // Mantém compatibilidade com cenas antigas que não possuem a tela de preparação.
+            yield return null;
+        }
+
+        yield return InicializarCombate();
+    }
+
+    private IEnumerator InicializarCombate()
+    {
+        reservaPlayer.Clear();
+        reservaInimigo.Clear();
+
+        if (preparacaoCombatePlayer != null)
+        {
+            List<Carta> copiaReserva = preparacaoCombatePlayer.ObterReservaSelecionadaCopia();
+            for (int i = 0; i < copiaReserva.Count; i++)
+            {
+                if (copiaReserva[i] != null)
+                    reservaPlayer.Add(copiaReserva[i]);
+            }
+        }
+
+        if (controladorInimigoNaCena != null)
+        {
+            for (int i = 0; i < controladorInimigoNaCena.reservaInimigo.Count; i++)
+            {
+                if (controladorInimigoNaCena.reservaInimigo[i] != null)
+                    reservaInimigo.Add(controladorInimigoNaCena.reservaInimigo[i]);
+            }
+        }
+
+        vidaAtualPlayer = Mathf.Max(1, vidaMaximaPlayer);
+
+        if (controladorInimigoNaCena != null && controladorInimigoNaCena.inimigoAtual != null)
+            vidaMaximaInimigo = Mathf.Max(1, controladorInimigoNaCena.inimigoAtual.vidaMaximaDuelista);
+        else
+            vidaMaximaInimigo = Mathf.Max(1, vidaMaximaInimigo);
+
+        vidaAtualInimigo = vidaMaximaInimigo;
+
+        hudDuelistasUI = hudDuelistasUI != null ? hudDuelistasUI : HUDDuelistasCombateUI.ObterOuCriar();
+        resultadoCombateUI = resultadoCombateUI != null ? resultadoCombateUI : ResultadoCombateUI.ObterOuCriar();
+        animadorEntradaDeck = animadorEntradaDeck != null ? animadorEntradaDeck : AnimadorEntradaDeckCombate.ObterOuCriar();
+
+        combateIniciado = false;
+        combateFinalizado = false;
+        acoesRestantesPlayer = Mathf.Max(1, maximoAcoesPorTurnoPlayer);
+        acoesRestantesInimigo = 0;
+
+        AtualizarListasDeCartas();
+        AtualizarHUDDuelistas();
+
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.MostrarMensagemTemporaria("Preparando os decks...", 1.2f);
+
+        List<Carta> deckPlayerSelecionado = preparacaoCombatePlayer != null
+            ? preparacaoCombatePlayer.ObterDeckPrincipalSelecionadoCopia()
+            : new List<Carta>();
+
+        List<Carta> deckInimigoSelecionado = controladorInimigoNaCena != null && controladorInimigoNaCena.deckInimigo != null
+            ? new List<Carta>(controladorInimigoNaCena.deckInimigo)
+            : new List<Carta>();
+
+        if (animadorEntradaDeck != null)
+        {
+            yield return animadorEntradaDeck.ColocarDecksComAnimacao(
+                deckPlayerSelecionado,
+                deckInimigoSelecionado,
+                tagSlotDeckPlayer,
+                tagSlotDeckInimigo,
+                tagCartaPlayer,
+                tagCartaInimigo,
+                preparacaoCombatePlayer,
+                organizadorDeckInimigo);
+        }
+        else
+        {
+            // Fallback apenas se o sistema automático não puder ser criado.
+            if (preparacaoCombatePlayer != null)
+                preparacaoCombatePlayer.PosicionarCartasSelecionadasNoDeck();
+            if (organizadorDeckInimigo != null)
+                organizadorDeckInimigo.PosicionarCartasDoDeckInimigo();
+        }
+
         AtualizarListasDeCartas();
         RegistrarCartasVisiveisDoPlayer();
+
+        combateIniciado = true;
         IniciarTurnoDoPlayer();
         AtualizarTextoTurno();
         AtualizarTextosDeRecursos();
+        AtualizarHUDDuelistas();
+        VerificarCondicoesDeFimDeCombate();
     }
 
     private void Update()
     {
+        if (!combateIniciado || combateFinalizado)
+            return;
+
         AtualizarListasDeCartas();
         RegistrarCartasVisiveisDoPlayer();
+        AtualizarHUDDuelistas();
         AtualizarInput();
     }
 
@@ -248,7 +412,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (CartaEstaParalisada(objetoClicado))
         {
-            Debug.Log("Essa carta est? com Sobrecarga e n?o pode ser usada agora.");
+            Debug.Log("Essa carta está com Sobrecarga e não pode ser usada agora.");
             return;
         }
 
@@ -282,7 +446,13 @@ public class CombateAmigavel : MonoBehaviour
 
         if (slotCemiterio != null)
         {
-            TentarDescartarCartaPlayer(cartaSendoArrastada);
+            // O cemitério é exclusivo para cartas derrotadas/sacrificadas pelo sistema.
+            // Arrastar manualmente uma carta até ele nunca é permitido.
+            VoltarCartaParaOrigem(cartaSendoArrastada, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
+
+            if (hudDuelistasUI != null)
+                hudDuelistasUI.MostrarMensagemTemporaria("O cemitério só recebe cartas derrotadas.");
+
             cartaSendoArrastada = null;
             estaArrastandoCarta = false;
             AtualizarListasDeCartas();
@@ -299,11 +469,19 @@ public class CombateAmigavel : MonoBehaviour
             {
                 VoltarCartaParaOrigem(cartaSendoArrastada, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
             }
+            else if (!PlayerPossuiAcaoDisponivel())
+            {
+                VoltarCartaParaOrigem(cartaSendoArrastada, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
+                MostrarSemAcoesPlayer();
+            }
             else
             {
                 cartaSendoArrastada.transform.SetParent(slotTransform);
                 cartaSendoArrastada.transform.position = slotTransform.position;
                 cartaSendoArrastada.transform.localScale = escalaOriginalCarta;
+
+                ConsumirAcaoPlayer("colocar uma carta no tabuleiro");
+                cartasPlayerColocadasNesteTurno.Add(cartaSendoArrastada);
 
                 Carta carta = cartaSendoArrastada.GetComponent<Carta>();
                 if (carta != null)
@@ -332,46 +510,19 @@ public class CombateAmigavel : MonoBehaviour
 
     private void TentarDescartarCartaPlayer(GameObject carta)
     {
-        if (!turnoDoPlayer)
-        {
+        // Mantido apenas para compatibilidade interna. No CombateAmigavel atual,
+        // o jogador não pode enviar cartas manualmente ao cemitério.
+        if (carta != null)
             VoltarCartaParaOrigem(carta, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
-            return;
-        }
 
-        if (energiaAtualPlayer <= 0)
-        {
-            Debug.Log("Player sem energia para descartar carta.");
-            VoltarCartaParaOrigem(carta, parentOriginalCarta, posicaoOriginalCarta, escalaOriginalCarta);
-            return;
-        }
-
-        energiaAtualPlayer--;
-        pontosResgatarPlayer++;
-        AtualizarTextosDeRecursos();
-
-        Debug.Log($"Player descartou {carta.name}. Energia restante: {energiaAtualPlayer}. Pontos de resgate: {pontosResgatarPlayer}");
-
-        MoverCartaParaCemiterio(carta);
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.MostrarMensagemTemporaria("O cemitério só recebe cartas derrotadas.");
     }
 
     private void TentarDescartarCartaInimigo(GameObject carta)
     {
-        if (!turnoDoInimigo)
-            return;
-
-        if (carta == null || !carta.CompareTag(tagCartaInimigo))
-            return;
-
-        if (energiaAtualInimigo <= 0)
-            return;
-
-        energiaAtualInimigo--;
-        pontosResgatarInimigo++;
-        AtualizarTextosDeRecursos();
-
-        Debug.Log($"Inimigo descartou {carta.name}. Energia restante: {energiaAtualInimigo}. Pontos de resgate: {pontosResgatarInimigo}");
-
-        MoverCartaParaCemiterio(carta);
+        // O inimigo também não descarta manualmente para o cemitério neste modo.
+        // Cemitério é reservado para derrota/sacrifício por regras de habilidade.
     }
 
     public void BotaoResgatarCartaPlayer()
@@ -381,92 +532,139 @@ public class CombateAmigavel : MonoBehaviour
 
     public void ResgatarCartaPlayer()
     {
-        if (!turnoDoPlayer)
+        if (combateFinalizado || !turnoDoPlayer)
         {
-            Debug.Log("S? pode resgatar carta no turno do player.");
+            Debug.Log("Só pode resgatar carta durante o turno do player.");
             return;
         }
 
-        if (pontosResgatarPlayer <= 0)
+        if (!PlayerPossuiAcaoDisponivel())
         {
-            Debug.Log("Player sem pontos de resgate.");
+            MostrarSemAcoesPlayer();
+            return;
+        }
+
+        if (reservaPlayer == null || reservaPlayer.Count == 0)
+        {
+            Debug.Log("A reserva do player está vazia.");
+            VerificarCondicoesDeFimDeCombate();
             return;
         }
 
         Transform slotLivre = EncontrarSlotLivre(tagSlotDeckPlayer);
         if (slotLivre == null)
         {
-            Debug.Log("Player n?o possui slot livre no deck para resgatar carta.");
+            Debug.Log("Player não possui slot livre no deck para resgatar carta.");
             return;
         }
 
-        if (Inventario.instancia == null || Inventario.instancia.cartasObtidas.Count == 0)
-        {
-            Debug.LogWarning("Invent?rio do player vazio.");
+        if (uiCombateCarta != null)
+            uiCombateCarta.FecharPainelCarta();
+
+        SelecaoReservaCombateUI selecao = SelecaoReservaCombateUI.ObterOuCriar();
+        if (selecao == null)
             return;
-        }
 
-        int indice = Random.Range(0, Inventario.instancia.cartasObtidas.Count);
-        Carta cartaPrefab = Inventario.instancia.cartasObtidas[indice];
+        selecao.Mostrar(reservaPlayer, CartaReservaPlayerEscolhida);
+    }
 
-        if (cartaPrefab == null)
+    private void CartaReservaPlayerEscolhida(Carta cartaPrefab)
+    {
+        if (cartaPrefab == null || combateFinalizado || !turnoDoPlayer)
+            return;
+
+        if (!PlayerPossuiAcaoDisponivel())
+            return;
+
+        Transform slotLivre = EncontrarSlotLivre(tagSlotDeckPlayer);
+        if (slotLivre == null)
+            return;
+
+        int indiceReserva = reservaPlayer.IndexOf(cartaPrefab);
+        if (indiceReserva < 0)
             return;
 
         GameObject cartaInstanciada = Instantiate(cartaPrefab.gameObject);
         Vector3 escala = cartaInstanciada.transform.localScale;
-
         cartaInstanciada.transform.SetParent(slotLivre);
         cartaInstanciada.transform.position = slotLivre.position;
         cartaInstanciada.transform.localScale = escala;
         cartaInstanciada.tag = tagCartaPlayer;
 
-        pontosResgatarPlayer--;
-        AtualizarTextosDeRecursos();
-        AtualizarListasDeCartas();
+        reservaPlayer.RemoveAt(indiceReserva);
+        ConsumirAcaoPlayer("pegar uma carta da reserva");
 
-        Debug.Log($"Player resgatou a carta {cartaPrefab.nome}.");
+        AtualizarListasDeCartas();
+        AtualizarTextosDeRecursos();
+        AtualizarHUDDuelistas();
+
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.MostrarMensagemTemporaria($"{cartaPrefab.nome} entrou a partir da reserva!");
+
+        Debug.Log($"Player resgatou da reserva a carta {cartaPrefab.nome}. Reserva restante: {reservaPlayer.Count}");
+        VerificarCondicoesDeFimDeCombate();
     }
 
     private bool ResgatarCartaInimigo()
     {
-        if (!turnoDoInimigo)
+        if (combateFinalizado || !turnoDoInimigo)
             return false;
 
-        if (pontosResgatarInimigo <= 0)
+        if (!InimigoPossuiAcaoDisponivel())
             return false;
 
-        if (energiaAtualInimigo <= 0)
-            return false;
-
-        if (controladorInimigoNaCena == null || controladorInimigoNaCena.inimigoAtual == null)
-            return false;
-
-        if (!controladorInimigoNaCena.inimigoAtual.podeReceberNovasCartasDuranteCombate)
+        if (reservaInimigo == null || reservaInimigo.Count == 0)
             return false;
 
         Transform slotLivre = EncontrarSlotLivre(tagSlotDeckInimigo);
         if (slotLivre == null)
             return false;
 
-        Carta cartaPrefab = controladorInimigoNaCena.inimigoAtual.SortearNovaCartaDuranteCombate();
+        Carta cartaPrefab = EscolherMelhorCartaDaReservaInimiga();
         if (cartaPrefab == null)
             return false;
 
         GameObject cartaInstanciada = Instantiate(cartaPrefab.gameObject);
         Vector3 escala = cartaInstanciada.transform.localScale;
-
         cartaInstanciada.transform.SetParent(slotLivre);
         cartaInstanciada.transform.position = slotLivre.position;
         cartaInstanciada.transform.localScale = escala;
         cartaInstanciada.tag = tagCartaInimigo;
 
-        energiaAtualInimigo--;
-        pontosResgatarInimigo--;
+        reservaInimigo.Remove(cartaPrefab);
+        ConsumirAcaoInimigo("pegar uma carta da reserva");
+
         AtualizarTextosDeRecursos();
         AtualizarListasDeCartas();
+        AtualizarHUDDuelistas();
 
-        Debug.Log($"Inimigo resgatou a carta {cartaPrefab.nome}.");
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.MostrarMensagemTemporaria($"{cartaPrefab.nome} entrou da reserva inimiga!");
+
+        Debug.Log($"Inimigo resgatou da reserva a carta {cartaPrefab.nome}. Reserva restante: {reservaInimigo.Count}");
         return true;
+    }
+
+    private Carta EscolherMelhorCartaDaReservaInimiga()
+    {
+        Carta melhor = null;
+        int melhorPontuacao = int.MinValue;
+
+        for (int i = 0; i < reservaInimigo.Count; i++)
+        {
+            Carta carta = reservaInimigo[i];
+            if (carta == null)
+                continue;
+
+            int pontuacao = carta.dano * 3 + carta.vida * 2 + carta.defesa * 2 + Random.Range(0, 6);
+            if (pontuacao > melhorPontuacao)
+            {
+                melhorPontuacao = pontuacao;
+                melhor = carta;
+            }
+        }
+
+        return melhor;
     }
 
     public void VoltarCartaPlayerParaDeck(GameObject carta)
@@ -480,6 +678,14 @@ public class CombateAmigavel : MonoBehaviour
         Transform slotLivreDeck = EncontrarSlotLivre(tagSlotDeckPlayer);
         if (slotLivreDeck == null)
             return;
+
+        if (!PlayerPossuiAcaoDisponivel())
+        {
+            MostrarSemAcoesPlayer();
+            return;
+        }
+
+        ConsumirAcaoPlayer("retornar uma carta ao deck");
 
         Vector3 escalaOriginal = carta.transform.localScale;
         carta.transform.SetParent(slotLivreDeck);
@@ -498,7 +704,7 @@ public class CombateAmigavel : MonoBehaviour
 
     public void BotaoAtacarCartaSelecionada()
     {
-        if (!turnoDoPlayer)
+        if (combateFinalizado || !turnoDoPlayer)
             return;
 
         if (uiCombateCarta == null || uiCombateCarta.cartaSelecionada == null)
@@ -512,15 +718,55 @@ public class CombateAmigavel : MonoBehaviour
         if (!EstaEmSlotComTag(atacante.transform, tagSlotTabuleiroPlayer))
             return;
 
-        if (CartaEstaParalisada(atacante))
+        if (!PlayerPossuiAcaoDisponivel())
         {
-            Debug.Log("Essa carta est? com Sobrecarga e n?o pode atacar.");
+            MostrarSemAcoesPlayer();
             return;
         }
 
-        if (cartasPlayerQueAtacaramNesteTurno.Contains(atacante))
+        if (CartaPlayerAindaEstaEmPreparacao(atacante))
         {
-            Debug.Log("Essa carta do player j? atacou neste turno.");
+            MostrarCartaRecemColocadaPlayer();
+            return;
+        }
+
+        if (CartaEstaParalisada(atacante))
+        {
+            Debug.Log("Essa carta está com Sobrecarga e não pode atacar.");
+            return;
+        }
+
+        if (cartasPlayerQueAtacaramNesteTurno.Contains(atacante) || JaExisteAtaquePendente(atacante))
+        {
+            Debug.Log("Essa carta do player já atacou ou já possui um ataque pendente neste turno.");
+            return;
+        }
+
+        AtualizarListasDeCartas();
+
+        // Se o campo inimigo estiver vazio, o ataque já é preparado diretamente no duelista.
+        if (cartasInimigoNoTabuleiro.Count == 0)
+        {
+            AtaquePendente ataqueDireto = new AtaquePendente
+            {
+                atacante = atacante,
+                alvo = null,
+                ataqueDiretoAoDuelista = true
+            };
+
+            if (!ConsumirAcaoPlayer("preparar um ataque direto"))
+                return;
+
+            ataquesPendentesDoPlayer.Add(ataqueDireto);
+            cartasPlayerQueAtacaramNesteTurno.Add(atacante);
+
+            if (uiCombateCarta != null)
+                uiCombateCarta.FecharPainelCarta();
+
+            if (hudDuelistasUI != null)
+                hudDuelistasUI.MostrarMensagemTemporaria("Ataque direto preparado! Será resolvido ao passar o turno.");
+
+            Debug.Log("Ataque direto contra o duelista inimigo foi preparado para o fim do turno.");
             return;
         }
 
@@ -549,7 +795,19 @@ public class CombateAmigavel : MonoBehaviour
 
             if (JaExisteAtaquePendente(cartaPlayerSelecionadaParaAtacar))
             {
-                Debug.Log("Essa carta do player j? possui um ataque pendente.");
+                Debug.Log("Essa carta do player já possui um ataque pendente.");
+                return;
+            }
+
+            if (!PlayerPossuiAcaoDisponivel())
+            {
+                MostrarSemAcoesPlayer();
+                return;
+            }
+
+            if (CartaPlayerAindaEstaEmPreparacao(cartaPlayerSelecionadaParaAtacar))
+            {
+                MostrarCartaRecemColocadaPlayer();
                 return;
             }
 
@@ -558,6 +816,9 @@ public class CombateAmigavel : MonoBehaviour
                 atacante = cartaPlayerSelecionadaParaAtacar,
                 alvo = cartaInimigoAlvoSelecionada
             };
+
+            if (!ConsumirAcaoPlayer("atacar"))
+                return;
 
             ataquesPendentesDoPlayer.Add(novoAtaque);
             cartasPlayerQueAtacaramNesteTurno.Add(cartaPlayerSelecionadaParaAtacar);
@@ -581,10 +842,25 @@ public class CombateAmigavel : MonoBehaviour
             if (cartaPlayerSelecionadaParaHabilidade == null || alvoSelecionadoParaHabilidade == null || habilidadePlayerSelecionada == null)
                 return;
 
+            if (!PlayerPossuiAcaoDisponivel())
+            {
+                MostrarSemAcoesPlayer();
+                return;
+            }
+
+            if (CartaPlayerAindaEstaEmPreparacao(cartaPlayerSelecionadaParaHabilidade))
+            {
+                MostrarCartaRecemColocadaPlayer();
+                return;
+            }
+
             if (!PodeUsarHabilidade(cartaPlayerSelecionadaParaHabilidade, habilidadePlayerSelecionada, indiceHabilidadePlayerSelecionada, true))
                 return;
 
             if (!PagarCustoEspecialSeNecessario(cartaPlayerSelecionadaParaHabilidade, habilidadePlayerSelecionada, true))
+                return;
+
+            if (!ConsumirAcaoPlayer("usar uma habilidade"))
                 return;
 
             AplicarHabilidade(cartaPlayerSelecionadaParaHabilidade, alvoSelecionadoParaHabilidade, habilidadePlayerSelecionada);
@@ -709,10 +985,22 @@ public class CombateAmigavel : MonoBehaviour
         if (!EstaEmSlotComTag(cartaObj.transform, tagSlotTabuleiroPlayer))
             return;
 
+        if (!PlayerPossuiAcaoDisponivel())
+        {
+            MostrarSemAcoesPlayer();
+            return;
+        }
+
+        if (CartaPlayerAindaEstaEmPreparacao(cartaObj))
+        {
+            MostrarCartaRecemColocadaPlayer();
+            return;
+        }
+
         Carta carta = cartaObj.GetComponent<Carta>();
         if (carta == null || !carta.TemHabilidadeValida())
         {
-            Debug.Log("Essa carta n?o possui habilidade v?lida configurada.");
+            Debug.Log("Essa carta não possui habilidade válida configurada.");
             return;
         }
 
@@ -736,7 +1024,7 @@ public class CombateAmigavel : MonoBehaviour
         HabilidadeCarta habilidade = carta.ObterHabilidade(indiceHabilidade);
         if (habilidade == null)
         {
-            Debug.Log("Habilidade inv?lida ou n?o configurada.");
+            Debug.Log("Habilidade inválida ou não configurada.");
             return;
         }
 
@@ -758,9 +1046,21 @@ public class CombateAmigavel : MonoBehaviour
 
         GameObject cartaObj = cartaPlayerSelecionadaParaHabilidade;
 
+        if (!PlayerPossuiAcaoDisponivel())
+        {
+            MostrarSemAcoesPlayer();
+            return;
+        }
+
+        if (CartaPlayerAindaEstaEmPreparacao(cartaObj))
+        {
+            MostrarCartaRecemColocadaPlayer();
+            return;
+        }
+
         if (cartasPlayerQueUsaramHabilidadeNesteTurno.Contains(cartaObj))
         {
-            Debug.Log("Essa carta do player j? usou habilidade neste turno.");
+            Debug.Log("Essa carta do player já usou habilidade neste turno.");
             return;
         }
 
@@ -770,6 +1070,9 @@ public class CombateAmigavel : MonoBehaviour
         if (habilidadePlayerSelecionada.alvoHabilidade == HabilidadeCarta.AlvoHabilidade.PropriaCarta)
         {
             if (!PagarCustoEspecialSeNecessario(cartaObj, habilidadePlayerSelecionada, true))
+                return;
+
+            if (!ConsumirAcaoPlayer("usar uma habilidade"))
                 return;
 
             AplicarHabilidade(cartaObj, cartaObj, habilidadePlayerSelecionada);
@@ -825,7 +1128,7 @@ public class CombateAmigavel : MonoBehaviour
 
     public void PassarTurno()
     {
-        if (!turnoDoPlayer || inimigoExecutandoTurno)
+        if (combateFinalizado || !turnoDoPlayer || inimigoExecutandoTurno)
             return;
 
         if (modoEscolhaAlvo)
@@ -836,18 +1139,38 @@ public class CombateAmigavel : MonoBehaviour
 
         ResolverAtaquesPendentesDoPlayer();
 
+        if (combateFinalizado)
+            return;
+
+        VerificarCondicoesDeFimDeCombate();
+        if (combateFinalizado)
+            return;
+
         turnoDoPlayer = false;
         turnoDoInimigo = true;
+        acoesRestantesPlayer = 0;
+        acoesRestantesInimigo = Mathf.Max(1, maximoAcoesPorTurnoInimigo);
+
+        // Cartas colocadas pelo inimigo no turno inimigo anterior agora ficam prontas para agir.
+        cartasInimigoColocadasNesteTurno.Clear();
 
         ProcessarBuffsTemporariosNoInicioDoTurno(false);
         ProcessarEfeitosNoInicioDoTurno(false);
         ProcessarCooldownsHabilidadesNoInicioDoTurno(false);
+
+        if (combateFinalizado)
+            return;
+
+        VerificarCondicoesDeFimDeCombate();
+        if (combateFinalizado)
+            return;
 
         contadorTurnosInimigo++;
         TentarRecuperarEnergiaInimigo();
 
         AtualizarTextoTurno();
         AtualizarTextosDeRecursos();
+        AtualizarHUDDuelistas();
 
         StartCoroutine(ExecutarTurnoDoInimigo());
     }
@@ -856,12 +1179,32 @@ public class CombateAmigavel : MonoBehaviour
     {
         for (int i = 0; i < ataquesPendentesDoPlayer.Count; i++)
         {
-            AtaquePendente ataque = ataquesPendentesDoPlayer[i];
+            if (combateFinalizado)
+                break;
 
-            if (ataque == null || ataque.atacante == null || ataque.alvo == null)
+            AtaquePendente ataque = ataquesPendentesDoPlayer[i];
+            if (ataque == null || ataque.atacante == null)
                 continue;
 
             if (!EstaEmSlotComTag(ataque.atacante.transform, tagSlotTabuleiroPlayer))
+                continue;
+
+            AtualizarListasDeCartas();
+
+            if (ataque.ataqueDiretoAoDuelista)
+            {
+                // Se alguma carta inimiga surgiu antes da resolução, ela volta a proteger o duelista.
+                if (cartasInimigoNoTabuleiro.Count > 0)
+                {
+                    Debug.Log("Ataque direto cancelado porque o inimigo voltou a possuir uma carta no tabuleiro.");
+                    continue;
+                }
+
+                AplicarAtaqueDiretoNoInimigo(ataque.atacante);
+                continue;
+            }
+
+            if (ataque.alvo == null)
                 continue;
 
             if (!EstaEmSlotComTag(ataque.alvo.transform, tagSlotTabuleiroInimigo))
@@ -895,14 +1238,73 @@ public class CombateAmigavel : MonoBehaviour
             textoEnergiaInimigo.text = $"Energia Inimigo: {energiaAtualInimigo}/{energiaMaximaInimigo}";
 
         if (textoResgatarPlayer != null)
-            textoResgatarPlayer.text = $"Resgatar Player: {pontosResgatarPlayer}";
+            textoResgatarPlayer.text = $"Reserva Player: {(reservaPlayer != null ? reservaPlayer.Count : 0)}";
 
         if (textoResgatarInimigo != null)
-            textoResgatarInimigo.text = $"Resgatar Inimigo: {pontosResgatarInimigo}";
+            textoResgatarInimigo.text = $"Reserva Inimigo: {(reservaInimigo != null ? reservaInimigo.Count : 0)}";
+    }
+
+    private bool PlayerPossuiAcaoDisponivel()
+    {
+        return turnoDoPlayer && !combateFinalizado && acoesRestantesPlayer > 0;
+    }
+
+    private bool InimigoPossuiAcaoDisponivel()
+    {
+        return turnoDoInimigo && !combateFinalizado && acoesRestantesInimigo > 0;
+    }
+
+    private bool ConsumirAcaoPlayer(string descricao)
+    {
+        if (!PlayerPossuiAcaoDisponivel())
+            return false;
+
+        acoesRestantesPlayer--;
+        Debug.Log($"AÇÃO PLAYER -> {descricao}. Restantes: {acoesRestantesPlayer}/{maximoAcoesPorTurnoPlayer}");
+        AtualizarHUDDuelistas();
+        return true;
+    }
+
+    private bool ConsumirAcaoInimigo(string descricao)
+    {
+        if (!InimigoPossuiAcaoDisponivel())
+            return false;
+
+        acoesRestantesInimigo--;
+        Debug.Log($"AÇÃO INIMIGO -> {descricao}. Restantes: {acoesRestantesInimigo}/{maximoAcoesPorTurnoInimigo}");
+        AtualizarHUDDuelistas();
+        return true;
+    }
+
+    private void MostrarSemAcoesPlayer()
+    {
+        Debug.Log("Player não possui mais ações neste turno.");
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.MostrarMensagemTemporaria("Você já gastou suas ações deste turno. Passe o turno.");
+    }
+
+    private bool CartaPlayerAindaEstaEmPreparacao(GameObject cartaObj)
+    {
+        return cartaRecemColocadaPrecisaEsperar && cartaObj != null && cartasPlayerColocadasNesteTurno.Contains(cartaObj);
+    }
+
+    private bool CartaInimigoAindaEstaEmPreparacao(GameObject cartaObj)
+    {
+        return cartaRecemColocadaPrecisaEsperar && cartaObj != null && cartasInimigoColocadasNesteTurno.Contains(cartaObj);
+    }
+
+    private void MostrarCartaRecemColocadaPlayer()
+    {
+        Debug.Log("Carta recém-colocada ainda está em preparação e só poderá agir no próximo turno do player.");
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.MostrarMensagemTemporaria("Carta recém-colocada: ela poderá atacar/usar habilidade no seu próximo turno.");
     }
 
     private IEnumerator ExecutarTurnoDoInimigo()
     {
+        if (combateFinalizado)
+            yield break;
+
         inimigoExecutandoTurno = true;
         AtualizarListasDeCartas();
 
@@ -910,6 +1312,8 @@ public class CombateAmigavel : MonoBehaviour
         cartasInimigoQueUsaramHabilidadeNesteTurno.Clear();
 
         yield return new WaitForSeconds(tempoEntreAcoesInimigo);
+        if (combateFinalizado)
+            yield break;
 
         int quantidadeParaColocar = CalcularQuantidadeIdealDeCartasParaColocar();
 
@@ -917,47 +1321,66 @@ public class CombateAmigavel : MonoBehaviour
         {
             bool colocou = InimigoTentaColocarCartaNoTabuleiro();
             AtualizarListasDeCartas();
+            AtualizarHUDDuelistas();
 
             if (!colocou)
                 break;
 
             yield return new WaitForSeconds(tempoEntreAcoesInimigo);
+            if (combateFinalizado)
+                yield break;
         }
 
-        if (DeveDescartarParaResgatar())
-        {
-            InimigoDescartaCartaDoDeckParaResgatar();
-            AtualizarListasDeCartas();
-            AtualizarTextosDeRecursos();
-            yield return new WaitForSeconds(tempoEntreAcoesInimigo);
-        }
-
-        if (pontosResgatarInimigo > 0)
+        // A reserva agora é uma ação normal: não precisa descartar uma carta nem gerar ponto de resgate.
+        if (InimigoPossuiAcaoDisponivel() && DeveUsarReservaInimigo())
         {
             bool resgatou = ResgatarCartaInimigo();
             if (resgatou)
             {
                 AtualizarListasDeCartas();
                 AtualizarTextosDeRecursos();
+                AtualizarHUDDuelistas();
                 yield return new WaitForSeconds(tempoEntreAcoesInimigo);
             }
         }
 
-        for (int i = 0; i < cartasInimigoNoTabuleiro.Count; i++)
+        VerificarCondicoesDeFimDeCombate();
+        if (combateFinalizado)
+            yield break;
+
+        // Usa no máximo algumas habilidades antes dos ataques para não gastar as 3 ações só em habilidades.
+        int habilidadesUsadasNesteTurno = 0;
+        for (int i = 0; i < cartasInimigoNoTabuleiro.Count && InimigoPossuiAcaoDisponivel(); i++)
         {
+            if (habilidadesUsadasNesteTurno >= Mathf.Max(0, maximoHabilidadesInimigoPorTurno))
+                break;
+
             GameObject cartaComHabilidade = cartasInimigoNoTabuleiro[i];
 
             if (TentarUsarHabilidadeInimigo(cartaComHabilidade))
             {
+                habilidadesUsadasNesteTurno++;
                 AtualizarListasDeCartas();
+                AtualizarHUDDuelistas();
+                VerificarCondicoesDeFimDeCombate();
+
+                if (combateFinalizado)
+                    yield break;
+
                 yield return new WaitForSeconds(tempoEntreAcoesInimigo);
             }
         }
 
-        for (int i = 0; i < cartasInimigoNoTabuleiro.Count; i++)
-        {
-            GameObject atacante = cartasInimigoNoTabuleiro[i];
+        AtualizarListasDeCartas();
 
+        // Cada carta inimiga apta ataca uma vez.
+        List<GameObject> atacantesDesteTurno = new List<GameObject>(cartasInimigoNoTabuleiro);
+        for (int i = 0; i < atacantesDesteTurno.Count && InimigoPossuiAcaoDisponivel(); i++)
+        {
+            if (combateFinalizado)
+                yield break;
+
+            GameObject atacante = atacantesDesteTurno[i];
             if (atacante == null)
                 continue;
 
@@ -967,19 +1390,50 @@ public class CombateAmigavel : MonoBehaviour
             if (!EstaEmSlotComTag(atacante.transform, tagSlotTabuleiroInimigo))
                 continue;
 
-            GameObject alvoEscolhido = EscolherAlvoEstrategicoDoPlayer(atacante);
+            if (CartaInimigoAindaEstaEmPreparacao(atacante))
+                continue;
 
+            AtualizarListasDeCartas();
+
+            if (cartasPlayerNoTabuleiro.Count == 0)
+            {
+                if (!ConsumirAcaoInimigo("atacar diretamente o player"))
+                    break;
+
+                AplicarAtaqueDiretoNoPlayer(atacante);
+                cartasInimigoQueAtacaramNesteTurno.Add(atacante);
+                AtualizarHUDDuelistas();
+
+                if (combateFinalizado)
+                    yield break;
+
+                yield return new WaitForSeconds(tempoEntreAcoesInimigo);
+                continue;
+            }
+
+            GameObject alvoEscolhido = EscolherAlvoEstrategicoDoPlayer(atacante);
             if (alvoEscolhido != null)
             {
+                if (!ConsumirAcaoInimigo("atacar uma carta"))
+                    break;
+
                 AplicarAtaque(atacante, alvoEscolhido);
                 cartasInimigoQueAtacaramNesteTurno.Add(atacante);
 
                 AtualizarListasDeCartas();
+                AtualizarHUDDuelistas();
+                VerificarCondicoesDeFimDeCombate();
+
+                if (combateFinalizado)
+                    yield break;
+
                 yield return new WaitForSeconds(tempoEntreAcoesInimigo);
             }
         }
 
-        EncerrarTurnoDoInimigo();
+        VerificarCondicoesDeFimDeCombate();
+        if (!combateFinalizado)
+            EncerrarTurnoDoInimigo();
     }
 
     private int CalcularQuantidadeIdealDeCartasParaColocar()
@@ -988,30 +1442,34 @@ public class CombateAmigavel : MonoBehaviour
 
         int slotsLivres = ContarSlotsLivres(tagSlotTabuleiroInimigo);
         int cartasNoDeck = cartasInimigoNoDeck.Count;
+        int acoesDisponiveis = Mathf.Max(0, acoesRestantesInimigo);
 
-        if (slotsLivres <= 0 || cartasNoDeck <= 0)
+        if (slotsLivres <= 0 || cartasNoDeck <= 0 || acoesDisponiveis <= 0)
             return 0;
 
         int cartasPlayerCampo = cartasPlayerNoTabuleiro.Count;
         int cartasInimigoCampo = cartasInimigoNoTabuleiro.Count;
 
         if (cartasPlayerCampo > cartasInimigoCampo)
-            return Mathf.Min(slotsLivres, cartasNoDeck, 2);
+            return Mathf.Min(slotsLivres, cartasNoDeck, acoesDisponiveis, 2);
 
         if (cartasInimigoCampo == 0)
-            return Mathf.Min(1, Mathf.Min(slotsLivres, cartasNoDeck));
+            return Mathf.Min(1, Mathf.Min(slotsLivres, Mathf.Min(cartasNoDeck, acoesDisponiveis)));
 
         if (cartasInimigoCampo < 2 && cartasNoDeck > 0)
-            return Mathf.Min(1, Mathf.Min(slotsLivres, cartasNoDeck));
+            return Mathf.Min(1, Mathf.Min(slotsLivres, Mathf.Min(cartasNoDeck, acoesDisponiveis)));
 
         if (Random.value < 0.45f)
-            return Mathf.Min(1, Mathf.Min(slotsLivres, cartasNoDeck));
+            return Mathf.Min(1, Mathf.Min(slotsLivres, Mathf.Min(cartasNoDeck, acoesDisponiveis)));
 
         return 0;
     }
 
     private bool InimigoTentaColocarCartaNoTabuleiro()
     {
+        if (!InimigoPossuiAcaoDisponivel())
+            return false;
+
         AtualizarListasDeCartas();
 
         Transform slotLivre = EncontrarSlotLivre(tagSlotTabuleiroInimigo);
@@ -1027,32 +1485,32 @@ public class CombateAmigavel : MonoBehaviour
         melhorCarta.transform.position = slotLivre.position;
         melhorCarta.transform.localScale = escala;
 
-        Debug.Log($"Inimigo colocou a carta {melhorCarta.name} no tabuleiro.");
+        ConsumirAcaoInimigo("colocar uma carta no tabuleiro");
+        cartasInimigoColocadasNesteTurno.Add(melhorCarta);
+
+        Debug.Log($"Inimigo colocou a carta {melhorCarta.name} no tabuleiro e ela ficará em preparação até o próximo turno do inimigo.");
         return true;
     }
 
-    private bool DeveDescartarParaResgatar()
+    private bool DeveUsarReservaInimigo()
     {
-        if (controladorInimigoNaCena == null || controladorInimigoNaCena.inimigoAtual == null)
+        if (combateFinalizado || !InimigoPossuiAcaoDisponivel())
             return false;
 
-        if (!controladorInimigoNaCena.inimigoAtual.podeReceberNovasCartasDuranteCombate)
+        if (reservaInimigo == null || reservaInimigo.Count == 0)
             return false;
 
-        if (energiaAtualInimigo <= 0)
+        if (EncontrarSlotLivre(tagSlotDeckInimigo) == null)
             return false;
 
-        if (pontosResgatarInimigo > 0)
-            return false;
+        AtualizarListasDeCartas();
 
-        Transform slotLivreNoDeck = EncontrarSlotLivre(tagSlotDeckInimigo);
-        if (slotLivreNoDeck != null)
-            return false;
+        // Prioriza a reserva quando o deck está acabando.
+        if (cartasInimigoNoDeck.Count <= 1)
+            return true;
 
-        if (cartasInimigoNoDeck.Count == 0)
-            return false;
-
-        return true;
+        // Se o inimigo ainda tem bastante deck, às vezes prepara uma carta extra para turnos futuros.
+        return cartasInimigoNoDeck.Count <= 3 && Random.value < 0.28f;
     }
 
     private void InimigoDescartaCartaDoDeckParaResgatar()
@@ -1220,7 +1678,13 @@ public class CombateAmigavel : MonoBehaviour
         if (!turnoDoInimigo)
             return false;
 
+        if (!InimigoPossuiAcaoDisponivel())
+            return false;
+
         if (cartaObj == null || !cartaObj.CompareTag(tagCartaInimigo))
+            return false;
+
+        if (CartaInimigoAindaEstaEmPreparacao(cartaObj))
             return false;
 
         if (!EstaEmSlotComTag(cartaObj.transform, tagSlotTabuleiroInimigo))
@@ -1248,6 +1712,9 @@ public class CombateAmigavel : MonoBehaviour
 
             if (!PagarCustoEspecialSeNecessario(cartaObj, habilidade, false))
                 continue;
+
+            if (!ConsumirAcaoInimigo("usar uma habilidade"))
+                return false;
 
             AplicarHabilidade(cartaObj, alvo, habilidade);
             RegistrarUsoHabilidade(cartaObj, habilidade, i);
@@ -1327,13 +1794,13 @@ public class CombateAmigavel : MonoBehaviour
 
         if (!habilidade.EstaConfigurada())
         {
-            Debug.Log($"A habilidade {habilidade.nomeHabilidade} n?o est? configurada corretamente.");
+            Debug.Log($"A habilidade {habilidade.nomeHabilidade} não está configurada corretamente.");
             return;
         }
 
         if (!ValidarAlvoDaHabilidade(usuarioObj, alvoObj, habilidade))
         {
-            Debug.LogWarning($"Alvo inv?lido para a habilidade {habilidade.nomeHabilidade} de {usuario.nome}.");
+            Debug.LogWarning($"Alvo inválido para a habilidade {habilidade.nomeHabilidade} de {usuario.nome}.");
             return;
         }
 
@@ -1408,7 +1875,7 @@ public class CombateAmigavel : MonoBehaviour
     {
         if (DisfarceProtegeContraAtacante(alvoObj, usuarioObj))
         {
-            Debug.Log($"HABILIDADE BLOQUEADA PELO DISFARCE -> {alvo.nome} n?o recebeu dano de {usuario.nome}.");
+            Debug.Log($"HABILIDADE BLOQUEADA PELO DISFARCE -> {alvo.nome} não recebeu dano de {usuario.nome}.");
             return;
         }
 
@@ -1422,7 +1889,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (alvo.vida <= 0)
         {
-            Debug.Log($"{alvo.nome} foi derrotada pela habilidade e enviada ao cemit?rio.");
+            Debug.Log($"{alvo.nome} foi derrotada pela habilidade e enviada ao cemitério.");
             MoverCartaParaCemiterio(alvoObj);
         }
     }
@@ -1431,7 +1898,7 @@ public class CombateAmigavel : MonoBehaviour
     {
         if (habilidade.tipoBuff == HabilidadeCarta.TipoBuff.Nenhum)
         {
-            Debug.LogWarning($"A habilidade de buff {habilidade.nomeHabilidade} de {usuario.nome} n?o possui tipo de buff v?lido.");
+            Debug.LogWarning($"A habilidade de buff {habilidade.nomeHabilidade} de {usuario.nome} não possui tipo de buff válido.");
             return;
         }
 
@@ -1452,21 +1919,21 @@ public class CombateAmigavel : MonoBehaviour
         if (tipoBuff == HabilidadeCarta.TipoBuff.Vida)
         {
             alvo.vida += valorFinal;
-            Debug.Log($"HABILIDADE TEMPOR?RIA -> {usuario.nome} aumentou a vida de {alvo.nome} em {valorFinal} por {duracao} turno(s). Vida atual: {alvo.vida}");
+            Debug.Log($"HABILIDADE TEMPORÁRIA -> {usuario.nome} aumentou a vida de {alvo.nome} em {valorFinal} por {duracao} turno(s). Vida atual: {alvo.vida}");
         }
         else if (tipoBuff == HabilidadeCarta.TipoBuff.Dano)
         {
             alvo.dano += valorFinal;
-            Debug.Log($"HABILIDADE TEMPOR?RIA -> {usuario.nome} aumentou o dano de {alvo.nome} em {valorFinal} por {duracao} turno(s). Dano atual: {alvo.dano}");
+            Debug.Log($"HABILIDADE TEMPORÁRIA -> {usuario.nome} aumentou o dano de {alvo.nome} em {valorFinal} por {duracao} turno(s). Dano atual: {alvo.dano}");
         }
         else if (tipoBuff == HabilidadeCarta.TipoBuff.Defesa)
         {
             alvo.defesa += valorFinal;
-            Debug.Log($"HABILIDADE TEMPOR?RIA -> {usuario.nome} aumentou a defesa de {alvo.nome} em {valorFinal} por {duracao} turno(s). Defesa atual: {alvo.defesa}");
+            Debug.Log($"HABILIDADE TEMPORÁRIA -> {usuario.nome} aumentou a defesa de {alvo.nome} em {valorFinal} por {duracao} turno(s). Defesa atual: {alvo.defesa}");
         }
         else
         {
-            Debug.LogWarning($"Tipo de buff inv?lido na habilidade de {usuario.nome}.");
+            Debug.LogWarning($"Tipo de buff inválido na habilidade de {usuario.nome}.");
             return;
         }
 
@@ -1492,6 +1959,19 @@ public class CombateAmigavel : MonoBehaviour
             return;
 
         GameObject cartaObj = uiCombateCarta.cartaSelecionada;
+
+        if (!PlayerPossuiAcaoDisponivel())
+        {
+            MostrarSemAcoesPlayer();
+            return;
+        }
+
+        if (CartaPlayerAindaEstaEmPreparacao(cartaObj))
+        {
+            MostrarCartaRecemColocadaPlayer();
+            return;
+        }
+
         Carta carta = cartaObj.GetComponent<Carta>();
         if (carta == null)
             return;
@@ -1514,12 +1994,15 @@ public class CombateAmigavel : MonoBehaviour
             return;
         }
 
-        Debug.Log("Nenhuma habilidade em conjunto dispon?vel para essa carta agora.");
+        Debug.Log("Nenhuma habilidade em conjunto disponível para essa carta agora.");
     }
 
     public bool CartaPossuiHabilidadeConjuntoDisponivel(GameObject cartaObj)
     {
         if (cartaObj == null)
+            return false;
+
+        if (!PlayerPossuiAcaoDisponivel() || CartaPlayerAindaEstaEmPreparacao(cartaObj))
             return false;
 
         Carta carta = cartaObj.GetComponent<Carta>();
@@ -1603,7 +2086,7 @@ public class CombateAmigavel : MonoBehaviour
         atacante.disfarceAtivo = false;
         atacante.spriteOriginalAntesDoDisfarce = null;
 
-        Debug.Log($"DISFARCE ENCERRADO -> {atacante.nome} atacou e voltou para a apar?ncia original.");
+        Debug.Log($"DISFARCE ENCERRADO -> {atacante.nome} atacou e voltou para a aparência original.");
     }
 
     private void AplicarDisfarce(GameObject usuarioObj, GameObject alvoObj, Carta usuario, Carta alvo)
@@ -1616,7 +2099,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (spriteUsuario == null || spriteAlvo == null || spriteAlvo.sprite == null)
         {
-            Debug.LogWarning("N?o foi poss?vel aplicar Disfarce porque uma das cartas n?o possui SpriteRenderer ou sprite.");
+            Debug.LogWarning("Não foi possível aplicar Disfarce porque uma das cartas não possui SpriteRenderer ou sprite.");
             return;
         }
 
@@ -1626,7 +2109,7 @@ public class CombateAmigavel : MonoBehaviour
         spriteUsuario.sprite = spriteAlvo.sprite;
         usuario.disfarceAtivo = true;
 
-        Debug.Log($"DISFARCE -> {usuario.nome} copiou a apar?ncia de {alvo.nome}. Enquanto n?o atacar, n?o poder? receber dano de cartas oponentes.");
+        Debug.Log($"DISFARCE -> {usuario.nome} copiou a aparência de {alvo.nome}. Enquanto não atacar, não poderá receber dano de cartas oponentes.");
     }
 
     private void AnularEfeitosNegativos(GameObject alvoObj, Carta usuario, Carta alvo)
@@ -1645,7 +2128,7 @@ public class CombateAmigavel : MonoBehaviour
         alvo.turnosSangramentoRestantes = 0;
         alvo.danoSangramentoPorTurno = 0;
 
-        Debug.Log($"ANULA??O -> {usuario.nome} removeu efeitos negativos de {alvo.nome}.");
+        Debug.Log($"ANULAÇÃO -> {usuario.nome} removeu efeitos negativos de {alvo.nome}.");
     }
 
     private void AplicarEfeitosDaHabilidade(GameObject usuarioObj, GameObject alvoObj, HabilidadeCarta habilidade)
@@ -1668,7 +2151,7 @@ public class CombateAmigavel : MonoBehaviour
             float rolagem = Random.Range(0f, 100f);
             if (rolagem > efeito.chanceAplicar)
             {
-                Debug.Log($"EFEITO FALHOU -> {efeito.tipoEfeito} n?o foi aplicado em {alvo.nome}. Chance: {efeito.chanceAplicar}% | Rolagem: {rolagem:F1}");
+                Debug.Log($"EFEITO FALHOU -> {efeito.tipoEfeito} não foi aplicado em {alvo.nome}. Chance: {efeito.chanceAplicar}% | Rolagem: {rolagem:F1}");
                 continue;
             }
 
@@ -1684,14 +2167,14 @@ public class CombateAmigavel : MonoBehaviour
                 alvo.efeitoFogoAtivo = true;
                 alvo.turnosFogoRestantes = Mathf.Max(1, efeito.duracaoTurnos);
                 alvo.danoFogoPorTurno = Mathf.Max(0, efeito.danoPorTurno);
-                Debug.Log($"FOGO -> {alvo.nome} est? pegando fogo por {alvo.turnosFogoRestantes} turno(s). Dano por turno: {alvo.danoFogoPorTurno}.");
+                Debug.Log($"FOGO -> {alvo.nome} está pegando fogo por {alvo.turnosFogoRestantes} turno(s). Dano por turno: {alvo.danoFogoPorTurno}.");
             }
             else if (efeito.tipoEfeito == EfeitoHabilidade.TipoEfeito.Sangramento)
             {
                 alvo.efeitoSangramentoAtivo = true;
                 alvo.turnosSangramentoRestantes = Mathf.Max(1, efeito.duracaoTurnos);
                 alvo.danoSangramentoPorTurno = Mathf.Max(0, efeito.danoPorTurno);
-                Debug.Log($"SANGRAMENTO -> {alvo.nome} est? sangrando por {alvo.turnosSangramentoRestantes} turno(s). Dano por turno: {alvo.danoSangramentoPorTurno}.");
+                Debug.Log($"SANGRAMENTO -> {alvo.nome} está sangrando por {alvo.turnosSangramentoRestantes} turno(s). Dano por turno: {alvo.danoSangramentoPorTurno}.");
             }
         }
     }
@@ -1706,7 +2189,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (slotLivre == null)
         {
-            Debug.LogWarning($"N?o h? slot livre no deck para mover {cartaObj.name} por efeito.");
+            Debug.LogWarning($"Não há slot livre no deck para mover {cartaObj.name} por efeito.");
             return;
         }
 
@@ -1779,7 +2262,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (carta.vida <= 0)
         {
-            Debug.Log($"{carta.nome} foi derrotada por {nomeEfeito} e enviada ao cemit?rio.");
+            Debug.Log($"{carta.nome} foi derrotada por {nomeEfeito} e enviada ao cemitério.");
             MoverCartaParaCemiterio(cartaObj);
         }
     }
@@ -1811,7 +2294,7 @@ public class CombateAmigavel : MonoBehaviour
     private string ObterTextoEstadoHabilidade(GameObject cartaObj, HabilidadeCarta habilidade, int indiceHabilidade)
     {
         if (cartaObj == null || habilidade == null)
-            return "Habilidade inv?lida.";
+            return "Habilidade inválida.";
 
         string texto = "";
 
@@ -1820,16 +2303,16 @@ public class CombateAmigavel : MonoBehaviour
             texto += "Habilidade especial\n";
 
             if (habilidade.exigirSacrificioCartas)
-                texto += $"Condi??o/Custo: sacrificar {habilidade.quantidadeCartasParaSacrificar} carta(s) aliada(s).\n";
+                texto += $"Condição/Custo: sacrificar {habilidade.quantidadeCartasParaSacrificar} carta(s) aliada(s).\n";
 
             if (habilidade.exigirDanoTotalCausado)
-                texto += $"Condi??o: causar {habilidade.danoTotalNecessario} de dano total. Atual: {ObterDanoTotalCausado(cartaObj)}.\n";
+                texto += $"Condição: causar {habilidade.danoTotalNecessario} de dano total. Atual: {ObterDanoTotalCausado(cartaObj)}.\n";
 
             if (habilidade.exigirVidaMenorOuIgual)
             {
                 Carta carta = cartaObj.GetComponent<Carta>();
                 int vidaAtual = carta != null ? carta.vida : 0;
-                texto += $"Condi??o: vida menor ou igual a {habilidade.vidaNecessariaMenorOuIgual}. Atual: {vidaAtual}.\n";
+                texto += $"Condição: vida menor ou igual a {habilidade.vidaNecessariaMenorOuIgual}. Atual: {vidaAtual}.\n";
             }
 
             if (habilidade.usarCooldownEspecial)
@@ -1840,7 +2323,7 @@ public class CombateAmigavel : MonoBehaviour
 
             if (habilidade.ativacaoEmConjunto)
             {
-                string nomeCarta = habilidade.cartaNecessariaNoTabuleiro != null ? habilidade.cartaNecessariaNoTabuleiro.nome : "n?o definida";
+                string nomeCarta = habilidade.cartaNecessariaNoTabuleiro != null ? habilidade.cartaNecessariaNoTabuleiro.nome : "não definida";
                 texto += $"Conjunto: precisa da carta {nomeCarta} no tabuleiro aliado.\n";
             }
         }
@@ -1859,7 +2342,7 @@ public class CombateAmigavel : MonoBehaviour
         else if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Anulacao)
             texto += "Efeito base: remove Sobrecarga, Fogo e Sangramento da carta aliada.\n";
         else if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Disfarce)
-            texto += "Efeito base: copia o sprite da carta escolhida e evita dano de cartas oponentes at? atacar.\n";
+            texto += "Efeito base: copia o sprite da carta escolhida e evita dano de cartas oponentes até atacar.\n";
 
         if (habilidade.efeitos != null && habilidade.efeitos.Count > 0)
         {
@@ -1870,7 +2353,7 @@ public class CombateAmigavel : MonoBehaviour
                 if (efeito == null)
                     continue;
 
-                texto += $"- {efeito.tipoEfeito} | Chance: {efeito.chanceAplicar}% | Dura??o: {efeito.duracaoTurnos} turno(s) | Dano/turno: {efeito.danoPorTurno}\n";
+                texto += $"- {efeito.tipoEfeito} | Chance: {efeito.chanceAplicar}% | Duração: {efeito.duracaoTurnos} turno(s) | Dano/turno: {efeito.danoPorTurno}\n";
             }
         }
 
@@ -1888,7 +2371,7 @@ public class CombateAmigavel : MonoBehaviour
         if (CartaEstaParalisada(cartaObj))
         {
             if (mostrarAviso)
-                Debug.Log("Essa carta est? com Sobrecarga e n?o pode usar habilidade agora.");
+                Debug.Log("Essa carta está com Sobrecarga e não pode usar habilidade agora.");
 
             return false;
         }
@@ -1898,7 +2381,7 @@ public class CombateAmigavel : MonoBehaviour
         if (!habilidade.habilidadeEspecial && habilidade.usarCooldown && cooldownAtual > 0)
         {
             if (mostrarAviso)
-                Debug.Log($"A habilidade {habilidade.nomeHabilidade} ainda est? em cooldown por {cooldownAtual} turno(s).");
+                Debug.Log($"A habilidade {habilidade.nomeHabilidade} ainda está em cooldown por {cooldownAtual} turno(s).");
 
             return false;
         }
@@ -1906,7 +2389,7 @@ public class CombateAmigavel : MonoBehaviour
         if (habilidade.habilidadeEspecial && habilidade.usarCooldownEspecial && cooldownAtual > 0)
         {
             if (mostrarAviso)
-                Debug.Log($"A habilidade especial {habilidade.nomeHabilidade} ainda est? em cooldown por {cooldownAtual} turno(s).");
+                Debug.Log($"A habilidade especial {habilidade.nomeHabilidade} ainda está em cooldown por {cooldownAtual} turno(s).");
 
             return false;
         }
@@ -1931,7 +2414,7 @@ public class CombateAmigavel : MonoBehaviour
             bool pode = cartasDisponiveis >= habilidade.quantidadeCartasParaSacrificar;
 
             if (!pode && mostrarAviso)
-                Debug.Log($"N?o h? cartas aliadas suficientes para sacrificar. Necess?rio: {habilidade.quantidadeCartasParaSacrificar} | Dispon?vel: {cartasDisponiveis}");
+                Debug.Log($"Não há cartas aliadas suficientes para sacrificar. Necessário: {habilidade.quantidadeCartasParaSacrificar} | Disponível: {cartasDisponiveis}");
 
             if (!pode)
                 return false;
@@ -1943,7 +2426,7 @@ public class CombateAmigavel : MonoBehaviour
             bool pode = danoAtual >= habilidade.danoTotalNecessario;
 
             if (!pode && mostrarAviso)
-                Debug.Log($"Dano total insuficiente para usar {habilidade.nomeHabilidade}. Necess?rio: {habilidade.danoTotalNecessario} | Atual: {danoAtual}");
+                Debug.Log($"Dano total insuficiente para usar {habilidade.nomeHabilidade}. Necessário: {habilidade.danoTotalNecessario} | Atual: {danoAtual}");
 
             if (!pode)
                 return false;
@@ -1955,7 +2438,7 @@ public class CombateAmigavel : MonoBehaviour
             bool pode = carta != null && carta.vida <= habilidade.vidaNecessariaMenorOuIgual;
 
             if (!pode && mostrarAviso)
-                Debug.Log($"A vida da carta ainda n?o est? baixa o suficiente para usar {habilidade.nomeHabilidade}.");
+                Debug.Log($"A vida da carta ainda não está baixa o suficiente para usar {habilidade.nomeHabilidade}.");
 
             if (!pode)
                 return false;
@@ -2167,7 +2650,7 @@ public class CombateAmigavel : MonoBehaviour
                 buff.carta.defesa = 0;
         }
 
-        Debug.Log($"BUFF ENCERRADO -> O b?nus de {buff.valor} em {buff.tipoBuff} acabou para {buff.carta.nome}.");
+        Debug.Log($"BUFF ENCERRADO -> O bônus de {buff.valor} em {buff.tipoBuff} acabou para {buff.carta.nome}.");
     }
 
     private void RemoverTodosBuffsDaCarta(GameObject cartaObj)
@@ -2377,6 +2860,9 @@ public class CombateAmigavel : MonoBehaviour
 
     private void AplicarAtaque(GameObject atacanteObj, GameObject alvoObj)
     {
+        if (combateFinalizado)
+            return;
+
         if (atacanteObj == null || alvoObj == null)
         {
             Debug.LogWarning("Ataque cancelado: atacante ou alvo nulo.");
@@ -2385,19 +2871,19 @@ public class CombateAmigavel : MonoBehaviour
 
         if (!CartaPodeReceberDano(atacanteObj))
         {
-            Debug.LogWarning("Ataque cancelado: atacante inv?lido.");
+            Debug.LogWarning("Ataque cancelado: atacante inválido.");
             return;
         }
 
         if (CartaEstaParalisada(atacanteObj))
         {
-            Debug.LogWarning("Ataque cancelado: a carta est? com Sobrecarga e n?o pode atacar.");
+            Debug.LogWarning("Ataque cancelado: a carta está com Sobrecarga e não pode atacar.");
             return;
         }
 
         if (!CartaPodeReceberDano(alvoObj))
         {
-            Debug.LogWarning("Ataque cancelado: alvo inv?lido.");
+            Debug.LogWarning("Ataque cancelado: alvo inválido.");
             return;
         }
 
@@ -2406,13 +2892,13 @@ public class CombateAmigavel : MonoBehaviour
 
         if (atacante == null || alvo == null)
         {
-            Debug.LogWarning("Ataque cancelado: componente Carta n?o encontrado.");
+            Debug.LogWarning("Ataque cancelado: componente Carta não encontrado.");
             return;
         }
 
         if (DisfarceProtegeContraAtacante(alvoObj, atacanteObj))
         {
-            Debug.Log($"ATAQUE BLOQUEADO PELO DISFARCE -> {alvo.nome} n?o recebeu dano de {atacante.nome}.");
+            Debug.Log($"ATAQUE BLOQUEADO PELO DISFARCE -> {alvo.nome} não recebeu dano de {atacante.nome}.");
             return;
         }
 
@@ -2443,13 +2929,251 @@ public class CombateAmigavel : MonoBehaviour
 
         if (alvo.vida <= 0)
         {
-            Debug.Log($"{alvo.nome} foi derrotada e enviada ao cemit?rio.");
+            Debug.Log($"{alvo.nome} foi derrotada e enviada ao cemitério.");
 
             if (cartaInimigoAlvoSelecionada == alvoObj)
                 cartaInimigoAlvoSelecionada = null;
 
             MoverCartaParaCemiterio(alvoObj);
         }
+    }
+
+    private void AplicarAtaqueDiretoNoInimigo(GameObject atacanteObj)
+    {
+        if (combateFinalizado || atacanteObj == null)
+            return;
+
+        if (!atacanteObj.CompareTag(tagCartaPlayer) || !EstaEmSlotComTag(atacanteObj.transform, tagSlotTabuleiroPlayer))
+            return;
+
+        AtualizarListasDeCartas();
+        if (cartasInimigoNoTabuleiro.Count > 0)
+        {
+            Debug.Log("Ataque direto bloqueado: o inimigo possui carta no tabuleiro.");
+            return;
+        }
+
+        if (CartaEstaParalisada(atacanteObj))
+            return;
+
+        Carta atacante = atacanteObj.GetComponent<Carta>();
+        if (atacante == null)
+            return;
+
+        int dano = Mathf.Max(0, atacante.dano);
+        int vidaAntes = vidaAtualInimigo;
+        vidaAtualInimigo = Mathf.Max(0, vidaAtualInimigo - dano);
+        RegistrarDanoTotalCausado(atacanteObj, dano);
+        RemoverDisfarceAoAtacarDireto(atacanteObj);
+
+        if (hudDuelistasUI != null)
+        {
+            hudDuelistasUI.AnimarDanoNoInimigo(dano);
+            hudDuelistasUI.MostrarMensagemTemporaria($"ATAQUE DIRETO! {atacante.nome} causou {dano} de dano.");
+        }
+
+        Debug.Log($"ATAQUE DIRETO -> {atacante.nome} atingiu o duelista inimigo | Vida: {vidaAntes} -> {vidaAtualInimigo}");
+        AtualizarHUDDuelistas();
+        VerificarCondicoesDeFimDeCombate();
+    }
+
+    private void AplicarAtaqueDiretoNoPlayer(GameObject atacanteObj)
+    {
+        if (combateFinalizado || atacanteObj == null)
+            return;
+
+        if (!atacanteObj.CompareTag(tagCartaInimigo) || !EstaEmSlotComTag(atacanteObj.transform, tagSlotTabuleiroInimigo))
+            return;
+
+        AtualizarListasDeCartas();
+        if (cartasPlayerNoTabuleiro.Count > 0)
+        {
+            Debug.Log("Ataque direto bloqueado: o player possui carta no tabuleiro.");
+            return;
+        }
+
+        if (CartaEstaParalisada(atacanteObj))
+            return;
+
+        Carta atacante = atacanteObj.GetComponent<Carta>();
+        if (atacante == null)
+            return;
+
+        int dano = Mathf.Max(0, atacante.dano);
+        int vidaAntes = vidaAtualPlayer;
+        vidaAtualPlayer = Mathf.Max(0, vidaAtualPlayer - dano);
+        RegistrarDanoTotalCausado(atacanteObj, dano);
+        RemoverDisfarceAoAtacarDireto(atacanteObj);
+
+        if (hudDuelistasUI != null)
+        {
+            hudDuelistasUI.AnimarDanoNoPlayer(dano);
+            hudDuelistasUI.MostrarMensagemTemporaria($"ATAQUE DIRETO INIMIGO! Você recebeu {dano} de dano.");
+        }
+
+        Debug.Log($"ATAQUE DIRETO -> {atacante.nome} atingiu o player | Vida: {vidaAntes} -> {vidaAtualPlayer}");
+        AtualizarHUDDuelistas();
+        VerificarCondicoesDeFimDeCombate();
+    }
+
+    private void RemoverDisfarceAoAtacarDireto(GameObject atacanteObj)
+    {
+        Carta atacante = atacanteObj != null ? atacanteObj.GetComponent<Carta>() : null;
+        if (atacante == null || !atacante.disfarceAtivo)
+            return;
+
+        SpriteRenderer spriteRenderer = atacanteObj.GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null && atacante.spriteOriginalAntesDoDisfarce != null)
+            spriteRenderer.sprite = atacante.spriteOriginalAntesDoDisfarce;
+
+        atacante.disfarceAtivo = false;
+        atacante.spriteOriginalAntesDoDisfarce = null;
+    }
+
+    private void AtualizarHUDDuelistas()
+    {
+        if (hudDuelistasUI == null)
+            return;
+
+        string nomeInimigo = "INIMIGO";
+        if (controladorInimigoNaCena != null && controladorInimigoNaCena.inimigoAtual != null &&
+            !string.IsNullOrEmpty(controladorInimigoNaCena.inimigoAtual.nomeInimigo))
+        {
+            nomeInimigo = controladorInimigoNaCena.inimigoAtual.nomeInimigo;
+        }
+
+        hudDuelistasUI.AtualizarPlayer("PLAYER", vidaAtualPlayer, vidaMaximaPlayer, reservaPlayer != null ? reservaPlayer.Count : 0);
+        hudDuelistasUI.AtualizarInimigo(nomeInimigo, vidaAtualInimigo, vidaMaximaInimigo, reservaInimigo != null ? reservaInimigo.Count : 0);
+        hudDuelistasUI.AtualizarAcoes(acoesRestantesPlayer, maximoAcoesPorTurnoPlayer, acoesRestantesInimigo, maximoAcoesPorTurnoInimigo);
+        hudDuelistasUI.AtualizarEstadoCampo(cartasPlayerNoTabuleiro.Count > 0, cartasInimigoNoTabuleiro.Count > 0);
+    }
+
+    private void VerificarCondicoesDeFimDeCombate()
+    {
+        if (!combateIniciado || combateFinalizado)
+            return;
+
+        if (vidaAtualInimigo <= 0)
+        {
+            FinalizarCombate(true, "A vida do duelista inimigo chegou a 0.");
+            return;
+        }
+
+        if (vidaAtualPlayer <= 0)
+        {
+            FinalizarCombate(false, "A vida do player chegou a 0.");
+            return;
+        }
+
+        AtualizarListasDeCartas();
+
+        if (!PlayerPossuiFormaDeContinuar())
+        {
+            FinalizarCombate(false, "O player ficou sem cartas utilizáveis e sem possibilidade de resgate.");
+            return;
+        }
+
+        if (!InimigoPossuiFormaDeContinuar())
+        {
+            FinalizarCombate(true, "O inimigo ficou sem cartas utilizáveis e sem possibilidade de resgate.");
+        }
+    }
+
+    private bool PlayerPossuiFormaDeContinuar()
+    {
+        if (cartasPlayerNoTabuleiro.Count > 0 || cartasPlayerNoDeck.Count > 0)
+            return true;
+
+        return reservaPlayer != null && reservaPlayer.Count > 0;
+    }
+
+    private bool InimigoPossuiFormaDeContinuar()
+    {
+        if (cartasInimigoNoTabuleiro.Count > 0 || cartasInimigoNoDeck.Count > 0)
+            return true;
+
+        return reservaInimigo != null && reservaInimigo.Count > 0;
+    }
+
+    private void FinalizarCombate(bool playerVenceu, string motivo)
+    {
+        if (combateFinalizado)
+            return;
+
+        combateFinalizado = true;
+        turnoDoPlayer = false;
+        turnoDoInimigo = false;
+        inimigoExecutandoTurno = false;
+        modoEscolhaAlvo = false;
+        ataquesPendentesDoPlayer.Clear();
+
+        if (uiCombateCarta != null)
+        {
+            uiCombateCarta.FecharPainelCarta();
+            uiCombateCarta.FecharTodosPaineisDeHabilidade();
+            uiCombateCarta.SairModoEscolhaAlvo();
+        }
+
+        StopAllCoroutines();
+
+        if (hudDuelistasUI != null)
+            hudDuelistasUI.Ocultar();
+
+        InimigoBase inimigo = controladorInimigoNaCena != null ? controladorInimigoNaCena.inimigoAtual : null;
+        string nomeInimigo = inimigo != null ? inimigo.nomeInimigo : "Inimigo";
+
+        resultadoCombateUI = resultadoCombateUI != null ? resultadoCombateUI : ResultadoCombateUI.ObterOuCriar();
+
+        Debug.Log($"COMBATE FINALIZADO -> {(playerVenceu ? "VITÓRIA" : "DERROTA")} | Motivo: {motivo}");
+
+        if (playerVenceu)
+        {
+            RecompensaCombateRecebida recompensa = SistemaRecompensasCombate.EntregarRecompensas(inimigo);
+            if (resultadoCombateUI != null)
+                resultadoCombateUI.MostrarVitoria(nomeInimigo, recompensa, SairDoCombate);
+        }
+        else
+        {
+            if (resultadoCombateUI != null)
+                resultadoCombateUI.MostrarDerrota(nomeInimigo, TentarNovamente, SairDoCombate);
+        }
+    }
+
+    private void TentarNovamente()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    private void SairDoCombate()
+    {
+        Time.timeScale = 1f;
+        string cenaRetorno = "";
+
+        if (GerenciadorInimigo.instancia != null)
+            cenaRetorno = GerenciadorInimigo.instancia.nomeCenaRetorno;
+
+        if (string.IsNullOrEmpty(cenaRetorno))
+            cenaRetorno = cenaRetornoFallback;
+
+        if (GerenciadorInimigo.instancia != null)
+            GerenciadorInimigo.instancia.LimparInimigoSelecionado();
+
+        if (!string.IsNullOrEmpty(cenaRetorno))
+        {
+            SceneManager.LoadScene(cenaRetorno);
+            return;
+        }
+
+        int buildAtual = SceneManager.GetActiveScene().buildIndex;
+        if (SceneManager.sceneCountInBuildSettings > 1 && buildAtual != 0)
+        {
+            Debug.LogWarning("Cena de retorno não definida. Voltando para a cena de índice 0.");
+            SceneManager.LoadScene(0);
+            return;
+        }
+
+        Debug.LogWarning("Nenhuma cena de retorno foi encontrada. Defina cenaRetornoFallback no CombateAmigavel se necessário.");
     }
 
     private bool CartaPodeReceberDano(GameObject cartaObj)
@@ -2461,7 +3185,7 @@ public class CombateAmigavel : MonoBehaviour
         if (carta == null)
             return false;
 
-        // N?o recebe dano se j? estiver no cemit?rio
+        // Não recebe dano se já estiver no cemitério
         if (EstaEmSlotComTag(cartaObj.transform, tagSlotCemiterio))
             return false;
 
@@ -2470,7 +3194,13 @@ public class CombateAmigavel : MonoBehaviour
 
     private void EncerrarTurnoDoInimigo()
     {
+        if (combateFinalizado)
+            return;
+
         AtualizarListasDeCartas();
+        VerificarCondicoesDeFimDeCombate();
+        if (combateFinalizado)
+            return;
 
         cartasPlayerQueAtacaramNesteTurno.Clear();
         cartasInimigoQueAtacaramNesteTurno.Clear();
@@ -2480,18 +3210,28 @@ public class CombateAmigavel : MonoBehaviour
         turnoDoInimigo = false;
         turnoDoPlayer = true;
         inimigoExecutandoTurno = false;
+        acoesRestantesInimigo = 0;
+        acoesRestantesPlayer = Mathf.Max(1, maximoAcoesPorTurnoPlayer);
+
+        // Cartas colocadas pelo player no turno anterior agora ficam prontas para agir.
+        cartasPlayerColocadasNesteTurno.Clear();
 
         ProcessarBuffsTemporariosNoInicioDoTurno(true);
         ProcessarEfeitosNoInicioDoTurno(true);
         ProcessarCooldownsHabilidadesNoInicioDoTurno(true);
+
+        VerificarCondicoesDeFimDeCombate();
+        if (combateFinalizado)
+            return;
 
         contadorTurnosPlayer++;
         TentarRecuperarEnergiaPlayer();
 
         AtualizarTextoTurno();
         AtualizarTextosDeRecursos();
+        AtualizarHUDDuelistas();
 
-        Debug.Log("Turno do inimigo encerrado. Agora ? o turno do player.");
+        Debug.Log("Turno do inimigo encerrado. Agora é o turno do player.");
     }
 
     private void TentarRecuperarEnergiaPlayer()
@@ -2513,7 +3253,7 @@ public class CombateAmigavel : MonoBehaviour
         }
         else
         {
-            Debug.Log("Player n?o recuperou energia desta vez.");
+            Debug.Log("Player não recuperou energia desta vez.");
         }
     }
 
@@ -2536,7 +3276,7 @@ public class CombateAmigavel : MonoBehaviour
         }
         else
         {
-            Debug.Log("Inimigo n?o recuperou energia desta vez.");
+            Debug.Log("Inimigo não recuperou energia desta vez.");
         }
     }
 
@@ -2712,13 +3452,23 @@ public class CombateAmigavel : MonoBehaviour
         {
             uiCombateCarta.FecharPainelCarta();
         }
+
+        AtualizarListasDeCartas();
+        AtualizarHUDDuelistas();
+        VerificarCondicoesDeFimDeCombate();
     }
 
     private void IniciarTurnoDoPlayer()
     {
+        if (combateFinalizado)
+            return;
+
         turnoDoPlayer = true;
         turnoDoInimigo = false;
         inimigoExecutandoTurno = false;
+        acoesRestantesPlayer = Mathf.Max(1, maximoAcoesPorTurnoPlayer);
+        acoesRestantesInimigo = 0;
+        cartasPlayerColocadasNesteTurno.Clear();
         cartasPlayerQueAtacaramNesteTurno.Clear();
         cartasPlayerQueUsaramHabilidadeNesteTurno.Clear();
         cartasInimigoQueUsaramHabilidadeNesteTurno.Clear();
@@ -2727,7 +3477,13 @@ public class CombateAmigavel : MonoBehaviour
         ProcessarBuffsTemporariosNoInicioDoTurno(true);
         ProcessarEfeitosNoInicioDoTurno(true);
 
+        VerificarCondicoesDeFimDeCombate();
+        if (combateFinalizado)
+            return;
+
         AtualizarTextoTurno();
         AtualizarTextosDeRecursos();
+        AtualizarHUDDuelistas();
     }
+
 }

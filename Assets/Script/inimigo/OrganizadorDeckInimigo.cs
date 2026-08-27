@@ -17,12 +17,15 @@ public class OrganizadorDeckInimigo : MonoBehaviour
     public List<GameObject> cartasInstanciadas = new List<GameObject>();
     public string tagCartaInimigo = "CartaInimigo";
 
+    [Header("Integração com CombateAmigavel")]
+    [Tooltip("Neste sistema o Start apenas encontra os slots. As cartas são instanciadas depois da preparação pelo CombateAmigavel/AnimadorEntradaDeckCombate.")]
+    public bool deckEhColocadoSomenteQuandoCombateInicia = true;
+
     private IEnumerator Start()
     {
         yield return null;
-
         BuscarSlotsDeckInimigo();
-        PosicionarCartasDoDeckInimigo();
+        // Não instancia cartas aqui. Isso impede que o player veja o deck inimigo durante a seleção.
     }
 
     public void BuscarSlotsDeckInimigo()
@@ -30,25 +33,17 @@ public class OrganizadorDeckInimigo : MonoBehaviour
         slotsDeckInimigo.Clear();
 
         GameObject[] slotsEncontrados = GameObject.FindGameObjectsWithTag(tagSlotDeckInimigo);
-
         for (int i = 0; i < slotsEncontrados.Length; i++)
         {
             if (slotsEncontrados[i] != null)
-            {
                 slotsDeckInimigo.Add(slotsEncontrados[i].transform);
-            }
         }
 
         slotsDeckInimigo.Sort((a, b) => a.name.CompareTo(b.name));
-
         Debug.Log($"Foram encontrados {slotsDeckInimigo.Count} slots com a tag {tagSlotDeckInimigo}.");
-
-        for (int i = 0; i < slotsDeckInimigo.Count; i++)
-        {
-            Debug.Log($"Slot [{i}] encontrado: {slotsDeckInimigo[i].name}");
-        }
     }
 
+    // Mantido para compatibilidade/manual. No CombateAmigavel novo, o AnimadorEntradaDeckCombate é quem instancia.
     public void PosicionarCartasDoDeckInimigo()
     {
         if (controladorInimigo == null)
@@ -63,45 +58,40 @@ public class OrganizadorDeckInimigo : MonoBehaviour
             return;
         }
 
-        if (controladorInimigo.deckInimigo == null || controladorInimigo.deckInimigo.Count == 0)
-        {
-            Debug.LogWarning("O deck do inimigo está vazio.");
-            return;
-        }
-
         if (slotsDeckInimigo.Count == 0)
-        {
-            Debug.LogWarning("Nenhum slot de deck do inimigo foi encontrado.");
+            BuscarSlotsDeckInimigo();
+
+        if (controladorInimigo.deckInimigo == null || controladorInimigo.deckInimigo.Count == 0 || slotsDeckInimigo.Count == 0)
             return;
-        }
 
-        cartasInstanciadas.Clear();
-
+        LimparRegistroCartasInstanciadas();
         int quantidadeParaPosicionar = Mathf.Min(controladorInimigo.deckInimigo.Count, slotsDeckInimigo.Count);
 
         for (int i = 0; i < quantidadeParaPosicionar; i++)
         {
             Carta cartaPrefab = controladorInimigo.deckInimigo[i];
             Transform slotAtual = slotsDeckInimigo[i];
-
             if (cartaPrefab == null || slotAtual == null)
                 continue;
 
             GameObject cartaInstanciada = Instantiate(cartaPrefab.gameObject);
-
             Vector3 escalaOriginal = cartaInstanciada.transform.localScale;
-
-            cartaInstanciada.transform.position = slotAtual.position;
             cartaInstanciada.transform.SetParent(slotAtual);
             cartaInstanciada.transform.position = slotAtual.position;
             cartaInstanciada.transform.localScale = escalaOriginal;
             cartaInstanciada.tag = tagCartaInimigo;
-
-            cartasInstanciadas.Add(cartaInstanciada);
-
-            Debug.Log($"Carta {cartaInstanciada.name} colocada no slot {slotAtual.name}.");
+            RegistrarCartaInstanciada(cartaInstanciada);
         }
+    }
 
-        Debug.Log($"{quantidadeParaPosicionar} cartas do inimigo foram posicionadas nos slots do deck.");
+    public void LimparRegistroCartasInstanciadas()
+    {
+        cartasInstanciadas.Clear();
+    }
+
+    public void RegistrarCartaInstanciada(GameObject carta)
+    {
+        if (carta != null && !cartasInstanciadas.Contains(carta))
+            cartasInstanciadas.Add(carta);
     }
 }
