@@ -32,19 +32,47 @@ public class PacoteInventarioUI : MonoBehaviour
             return;
         }
 
-        if (imagemPacote != null)
-        {
-            imagemPacote.sprite = pacote.imagemPacote;
-            imagemPacote.preserveAspect = true;
-        }
-
-        if (textoNomePacote != null)
-            textoNomePacote.text = pacote.nomePacote;
+        ConfigurarVisual();
 
         if (botao != null)
         {
+            botao.interactable = true;
             botao.onClick.RemoveAllListeners();
             botao.onClick.AddListener(AoClicar);
+        }
+        else
+        {
+            Debug.LogWarning("PacoteInventarioUI não possui um Button configurado.");
+        }
+    }
+
+    private void ConfigurarVisual()
+    {
+        if (imagemPacote != null)
+        {
+            imagemPacote.preserveAspect = true;
+            imagemPacote.raycastTarget = true;
+
+            if (pacote.imagemPacote != null)
+            {
+                // Se um dia você voltar a colocar uma arte de pacote, ela continua funcionando.
+                imagemPacote.sprite = pacote.imagemPacote;
+                imagemPacote.color = Color.white;
+            }
+            else
+            {
+                // Não existe imagem: o próprio Image vira uma embalagem simples colorida.
+                imagemPacote.sprite = null;
+                imagemPacote.color = pacote.corPrincipalPacote;
+                imagemPacote.preserveAspect = false;
+            }
+        }
+
+        if (textoNomePacote != null)
+        {
+            textoNomePacote.text = pacote.nomePacote;
+            textoNomePacote.color = pacote.corTextoPacote;
+            textoNomePacote.raycastTarget = false;
         }
     }
 

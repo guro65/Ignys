@@ -31,6 +31,10 @@ public class InventarioUI : MonoBehaviour
     [SerializeField] private Button botaoPesarPacote;
     [SerializeField] private Button botaoFecharPacote;
 
+    [Header("Abertura animada de pacote")]
+    [Tooltip("Opcional. Se ficar vazio, o jogo cria automaticamente o sistema de abertura animada em tempo de execução.")]
+    [SerializeField] private AberturaPacoteUI aberturaPacoteUI;
+
     private PacoteAdquirido pacoteSelecionado;
     private bool mostrandoPacotes = false;
 
@@ -241,12 +245,51 @@ public class InventarioUI : MonoBehaviour
         {
             Carta carta = cartasObtidas[i];
             if (carta != null)
-                Debug.Log($"Carta do pacote [{i + 1}/10]: {carta.nome} | {carta.raridade}");
+                Debug.Log($"Carta do pacote [{i + 1}/{cartasObtidas.Count}]: {carta.nome} | {carta.raridade}");
         }
 
+        // As cartas já foram adicionadas ao Inventario antes da animação.
+        // Assim, mesmo que a cena seja interrompida, o jogador não perde a recompensa.
         FecharAcoesPacote();
+
+        if (painelInventario != null)
+            painelInventario.SetActive(false);
+
+        AberturaPacoteUI sistemaAbertura = aberturaPacoteUI;
+
+        if (sistemaAbertura == null)
+            sistemaAbertura = AberturaPacoteUI.ObterOuCriar();
+
+        if (sistemaAbertura == null)
+        {
+            Debug.LogWarning("Não foi possível criar o sistema visual de abertura de pacote. O inventário será atualizado normalmente.");
+            FinalizarAberturaVisual();
+            return;
+        }
+
+        sistemaAbertura.IniciarAbertura(
+            pacoteQueSeraAberto,
+            cartasObtidas,
+            FinalizarAberturaVisual
+        );
+    }
+
+    private void FinalizarAberturaVisual()
+    {
         AtualizarPacotes();
         AtualizarCartas();
+
+        if (painelInventario != null)
+            painelInventario.SetActive(true);
+
+        // Volta para a aba de pacotes depois de fechar a tela de revelação.
+        mostrandoPacotes = true;
+
+        if (painelAbaCartas != null)
+            painelAbaCartas.SetActive(false);
+
+        if (painelAbaPacotes != null)
+            painelAbaPacotes.SetActive(true);
     }
 
     public void FecharAcoesPacote()

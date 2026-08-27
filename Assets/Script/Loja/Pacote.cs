@@ -25,6 +25,11 @@ public class PacoteAdquirido
     public Sprite imagemPacote;
     public PesoPacote peso;
 
+    [Header("Visual gerado sem imagem")]
+    public Color corPrincipalPacote = new Color32(50, 58, 82, 255);
+    public Color corSecundariaPacote = new Color32(225, 70, 95, 255);
+    public Color corTextoPacote = Color.white;
+
     [Header("Cartas disponíveis neste pacote")]
     public List<Carta> cartasDisponiveis = new List<Carta>();
 
@@ -44,6 +49,9 @@ public class PacoteAdquirido
         peso = pesoSorteado;
 
         imagemPacote = pacoteOrigem.imagemPacote;
+        corPrincipalPacote = pacoteOrigem.corPrincipalPacote;
+        corSecundariaPacote = pacoteOrigem.corSecundariaPacote;
+        corTextoPacote = pacoteOrigem.corTextoPacote;
 
         if (imagemPacote == null)
         {
@@ -283,7 +291,19 @@ public class Pacote : MonoBehaviour
 {
     [Header("Informações do Pacote")]
     public string nomePacote;
+
+    [Tooltip("Opcional. Se estiver vazio, o inventário e a abertura usam um visual gerado pela própria Unity.")]
     public Sprite imagemPacote;
+
+    [Header("Visual gerado sem imagem")]
+    [Tooltip("Cor principal usada quando o pacote não possui imagem e também na animação de abertura.")]
+    public Color corPrincipalPacote = new Color32(50, 58, 82, 255);
+
+    [Tooltip("Cor dos detalhes, faixas e brilhos da embalagem gerada.")]
+    public Color corSecundariaPacote = new Color32(225, 70, 95, 255);
+
+    [Tooltip("Cor dos textos desenhados na embalagem gerada.")]
+    public Color corTextoPacote = Color.white;
 
     [Header("Cartas que podem sair neste pacote")]
     public List<Carta> cartasDisponiveis = new List<Carta>();
