@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,15 +9,21 @@ public class HUDDuelistasCombateUI : MonoBehaviour
     private static HUDDuelistasCombateUI instancia;
 
     [Header("Cores")]
-    [SerializeField] private Color corPainel = new Color(0.04f, 0.05f, 0.08f, 0.88f);
+    [SerializeField] private Color corPainel = new Color(0.04f, 0.05f, 0.08f, 0.9f);
     [SerializeField] private Color corPlayer = new Color(0.25f, 0.75f, 1f, 1f);
     [SerializeField] private Color corInimigo = new Color(1f, 0.32f, 0.38f, 1f);
     [SerializeField] private Color corVidaCheia = new Color(0.25f, 0.9f, 0.35f, 1f);
     [SerializeField] private Color corVidaBaixa = new Color(1f, 0.25f, 0.25f, 1f);
+    [SerializeField] private Color corAcaoDisponivel = new Color(1f, 0.82f, 0.22f, 1f);
+    [SerializeField] private Color corAcaoGasta = new Color(0.24f, 0.27f, 0.34f, 1f);
 
     [Header("Posição dos HUDs")]
-    [SerializeField] private Vector2 posicaoHUDPlayer = new Vector2(30f, -180f);
-    [SerializeField] private Vector2 posicaoHUDInimigo = new Vector2(-30f, -30f);
+    [SerializeField] private Vector2 posicaoHUDPlayer = new Vector2(24f, -180f);
+    [SerializeField] private Vector2 posicaoHUDInimigo = new Vector2(-24f, -24f);
+
+    [Header("Animação da vida")]
+    [SerializeField] private float velocidadeAnimacaoVida = 6f;
+    [SerializeField] private float limiteVidaBaixa = 0.25f;
 
     private Canvas canvas;
     private RectTransform raiz;
@@ -26,12 +33,22 @@ public class HUDDuelistasCombateUI : MonoBehaviour
     private Image barraInimigo;
     private TMP_Text textoPlayer;
     private TMP_Text textoInimigo;
-    private TMP_Text textoReservaPlayer;
-    private TMP_Text textoReservaInimigo;
+    private TMP_Text textoContadoresPlayer;
+    private TMP_Text textoContadoresInimigo;
     private TMP_Text textoAcoesPlayer;
     private TMP_Text textoAcoesInimigo;
     private TMP_Text textoEstadoCampo;
-    private int mensagemTemporariaId = 0;
+    private RectTransform containerAcoesPlayer;
+    private RectTransform containerAcoesInimigo;
+    private readonly List<Image> pipsPlayer = new List<Image>();
+    private readonly List<Image> pipsInimigo = new List<Image>();
+
+    private float alvoVidaPlayer = 1f;
+    private float alvoVidaInimigo = 1f;
+    private float visualVidaPlayer = 1f;
+    private float visualVidaInimigo = 1f;
+    private int maxAcoesPlayerAnterior = -1;
+    private int maxAcoesInimigoAnterior = -1;
 
     public static HUDDuelistasCombateUI ObterOuCriar()
     {
@@ -59,11 +76,22 @@ public class HUDDuelistasCombateUI : MonoBehaviour
             instancia = null;
     }
 
+    private void Update()
+    {
+        if (canvas == null)
+            return;
+
+        visualVidaPlayer = Mathf.Lerp(visualVidaPlayer, alvoVidaPlayer, 1f - Mathf.Exp(-velocidadeAnimacaoVida * Time.unscaledDeltaTime));
+        visualVidaInimigo = Mathf.Lerp(visualVidaInimigo, alvoVidaInimigo, 1f - Mathf.Exp(-velocidadeAnimacaoVida * Time.unscaledDeltaTime));
+
+        AtualizarBarraVisual(barraPlayer, visualVidaPlayer);
+        AtualizarBarraVisual(barraInimigo, visualVidaInimigo);
+    }
+
     public void Configurar(string nomePlayer, int vidaAtualPlayer, int vidaMaximaPlayer, int reservaPlayer,
         string nomeInimigo, int vidaAtualInimigo, int vidaMaximaInimigo, int reservaInimigo)
     {
         CriarInterfaceSeNecessario();
-
         AtualizarPlayer(nomePlayer, vidaAtualPlayer, vidaMaximaPlayer, reservaPlayer);
         AtualizarInimigo(nomeInimigo, vidaAtualInimigo, vidaMaximaInimigo, reservaInimigo);
     }
@@ -71,24 +99,53 @@ public class HUDDuelistasCombateUI : MonoBehaviour
     public void AtualizarPlayer(string nome, int atual, int maximo, int reserva)
     {
         CriarInterfaceSeNecessario();
-        AtualizarPainel(textoPlayer, textoReservaPlayer, barraPlayer, nome, atual, maximo, reserva, corPlayer);
+        AtualizarPainel(textoPlayer, nome, atual, maximo, true);
+        if (textoContadoresPlayer != null && string.IsNullOrEmpty(textoContadoresPlayer.text))
+            textoContadoresPlayer.text = $"Res {Mathf.Max(0, reserva)}";
     }
 
     public void AtualizarInimigo(string nome, int atual, int maximo, int reserva)
     {
         CriarInterfaceSeNecessario();
-        AtualizarPainel(textoInimigo, textoReservaInimigo, barraInimigo, nome, atual, maximo, reserva, corInimigo);
+        AtualizarPainel(textoInimigo, nome, atual, maximo, false);
+        if (textoContadoresInimigo != null && string.IsNullOrEmpty(textoContadoresInimigo.text))
+            textoContadoresInimigo.text = $"Res {Mathf.Max(0, reserva)}";
+    }
+
+    public void AtualizarContadores(int deckPlayer, int reservaPlayer, int cemiterioPlayer,
+        int deckInimigo, int reservaInimigo, int cemiterioInimigo)
+    {
+        CriarInterfaceSeNecessario();
+        if (textoContadoresPlayer != null)
+            textoContadoresPlayer.text = $"Deck {Mathf.Max(0, deckPlayer)}  •  Res {Mathf.Max(0, reservaPlayer)}  •  Cem {Mathf.Max(0, cemiterioPlayer)}";
+        if (textoContadoresInimigo != null)
+            textoContadoresInimigo.text = $"Deck {Mathf.Max(0, deckInimigo)}  •  Res {Mathf.Max(0, reservaInimigo)}  •  Cem {Mathf.Max(0, cemiterioInimigo)}";
     }
 
     public void AtualizarAcoes(int acoesPlayer, int maxPlayer, int acoesInimigo, int maxInimigo)
     {
         CriarInterfaceSeNecessario();
+        maxPlayer = Mathf.Max(1, maxPlayer);
+        maxInimigo = Mathf.Max(1, maxInimigo);
 
         if (textoAcoesPlayer != null)
-            textoAcoesPlayer.text = $"Ações: {Mathf.Max(0, acoesPlayer)}/{Mathf.Max(1, maxPlayer)}";
-
+            textoAcoesPlayer.text = "AÇÕES";
         if (textoAcoesInimigo != null)
-            textoAcoesInimigo.text = $"Ações: {Mathf.Max(0, acoesInimigo)}/{Mathf.Max(1, maxInimigo)}";
+            textoAcoesInimigo.text = "AÇÕES";
+
+        if (maxAcoesPlayerAnterior != maxPlayer)
+        {
+            RecriarPips(containerAcoesPlayer, pipsPlayer, maxPlayer);
+            maxAcoesPlayerAnterior = maxPlayer;
+        }
+        if (maxAcoesInimigoAnterior != maxInimigo)
+        {
+            RecriarPips(containerAcoesInimigo, pipsInimigo, maxInimigo);
+            maxAcoesInimigoAnterior = maxInimigo;
+        }
+
+        AtualizarPips(pipsPlayer, Mathf.Max(0, acoesPlayer));
+        AtualizarPips(pipsInimigo, Mathf.Max(0, acoesInimigo));
     }
 
     public void AtualizarEstadoCampo(bool playerPossuiCartaNoCampo, bool inimigoPossuiCartaNoCampo)
@@ -98,11 +155,11 @@ public class HUDDuelistasCombateUI : MonoBehaviour
             return;
 
         if (!playerPossuiCartaNoCampo && !inimigoPossuiCartaNoCampo)
-            textoEstadoCampo.text = "OS DOIS CAMPOS ESTÃO ABERTOS";
+            textoEstadoCampo.text = "CAMPOS ABERTOS";
         else if (!inimigoPossuiCartaNoCampo)
-            textoEstadoCampo.text = "CAMPO INIMIGO ABERTO — seus ataques atingem o oponente";
+            textoEstadoCampo.text = "CAMPO INIMIGO ABERTO";
         else if (!playerPossuiCartaNoCampo)
-            textoEstadoCampo.text = "SEU CAMPO ESTÁ ABERTO — proteja o duelista";
+            textoEstadoCampo.text = "SEU CAMPO ESTÁ ABERTO";
         else
             textoEstadoCampo.text = "";
     }
@@ -111,25 +168,33 @@ public class HUDDuelistasCombateUI : MonoBehaviour
     {
         CriarInterfaceSeNecessario();
         if (painelPlayer != null)
-            StartCoroutine(AnimarDano(painelPlayer, dano, corPlayer));
+            StartCoroutine(AnimarDano(painelPlayer, dano));
     }
 
     public void AnimarDanoNoInimigo(int dano)
     {
         CriarInterfaceSeNecessario();
         if (painelInimigo != null)
-            StartCoroutine(AnimarDano(painelInimigo, dano, corInimigo));
+            StartCoroutine(AnimarDano(painelInimigo, dano));
+    }
+
+    public void AnimarAtaqueDiretoNoPlayer()
+    {
+        if (painelPlayer != null)
+            StartCoroutine(AnimarImpactoPainel(painelPlayer));
+    }
+
+    public void AnimarAtaqueDiretoNoInimigo()
+    {
+        if (painelInimigo != null)
+            StartCoroutine(AnimarImpactoPainel(painelInimigo));
     }
 
     public void MostrarMensagemTemporaria(string mensagem, float duracao = 1.4f)
     {
-        CriarInterfaceSeNecessario();
-        if (textoEstadoCampo == null)
-            return;
-
-        mensagemTemporariaId++;
-        int id = mensagemTemporariaId;
-        StartCoroutine(RotinaMensagem(mensagem, duracao, id));
+        NotificacaoJogoUI notificacao = NotificacaoJogoUI.ObterOuCriar();
+        if (notificacao != null)
+            notificacao.MostrarMensagem(mensagem, duracao);
     }
 
     public void Ocultar()
@@ -145,7 +210,6 @@ public class HUDDuelistasCombateUI : MonoBehaviour
 
         GameObject canvasObj = new GameObject("Canvas_HUDDuelistas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
         canvasObj.transform.SetParent(transform, false);
-
         canvas = canvasObj.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 2500;
@@ -155,29 +219,27 @@ public class HUDDuelistasCombateUI : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
         scaler.matchWidthOrHeight = 0.5f;
-
         raiz = canvasObj.GetComponent<RectTransform>();
 
         painelPlayer = CriarPainelDuelista("PainelPlayer", raiz, posicaoHUDPlayer, false,
-            out textoPlayer, out textoReservaPlayer, out textoAcoesPlayer, out barraPlayer);
-
+            out textoPlayer, out textoContadoresPlayer, out textoAcoesPlayer, out containerAcoesPlayer, out barraPlayer);
         painelInimigo = CriarPainelDuelista("PainelInimigo", raiz, posicaoHUDInimigo, true,
-            out textoInimigo, out textoReservaInimigo, out textoAcoesInimigo, out barraInimigo);
+            out textoInimigo, out textoContadoresInimigo, out textoAcoesInimigo, out containerAcoesInimigo, out barraInimigo);
 
-        textoEstadoCampo = CriarTexto("EstadoCampo", raiz, "", 26f, Color.white,
-            new Vector2(1000f, 70f), new Vector2(0f, -38f), TextAlignmentOptions.Center);
+        textoEstadoCampo = CriarTexto("EstadoCampo", raiz, "", 16f, new Color(0.9f, 0.93f, 1f, 0.95f),
+            new Vector2(420f, 28f), new Vector2(0f, -42f), TextAlignmentOptions.Center);
         textoEstadoCampo.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         textoEstadoCampo.rectTransform.anchorMax = new Vector2(0.5f, 1f);
         textoEstadoCampo.rectTransform.pivot = new Vector2(0.5f, 1f);
     }
 
     private RectTransform CriarPainelDuelista(string nome, RectTransform parent, Vector2 margem, bool direita,
-        out TMP_Text textoVida, out TMP_Text textoReserva, out TMP_Text textoAcoes, out Image barra)
+        out TMP_Text textoVida, out TMP_Text textoContadores, out TMP_Text textoAcoes, out RectTransform containerAcoes, out Image barra)
     {
         GameObject painelObj = new GameObject(nome, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rt = painelObj.GetComponent<RectTransform>();
         rt.SetParent(parent, false);
-        rt.sizeDelta = new Vector2(410f, 150f);
+        rt.sizeDelta = new Vector2(360f, 136f);
         rt.anchorMin = direita ? new Vector2(1f, 1f) : new Vector2(0f, 1f);
         rt.anchorMax = rt.anchorMin;
         rt.pivot = direita ? new Vector2(1f, 1f) : new Vector2(0f, 1f);
@@ -187,90 +249,149 @@ public class HUDDuelistasCombateUI : MonoBehaviour
         fundo.color = corPainel;
         fundo.raycastTarget = false;
 
-        textoVida = CriarTexto("Vida", rt, "", 27f, Color.white,
-            new Vector2(370f, 42f), new Vector2(0f, 32f), TextAlignmentOptions.Center);
+        textoVida = CriarTexto("Vida", rt, "", 22f, Color.white,
+            new Vector2(330f, 34f), new Vector2(0f, 45f), TextAlignmentOptions.Center);
+        textoVida.enableAutoSizing = true;
+        textoVida.fontSizeMin = 15f;
+        textoVida.fontSizeMax = 22f;
+        textoVida.enableWordWrapping = false;
 
         RectTransform trilho = CriarImagem("TrilhoVida", rt, new Color(0f, 0f, 0f, 0.6f),
-            new Vector2(350f, 22f), new Vector2(0f, -7f));
-        trilho.GetComponent<Image>().raycastTarget = false;
-
-        RectTransform barraRT = CriarImagem("BarraVida", trilho, corVidaCheia,
-            new Vector2(350f, 22f), Vector2.zero);
+            new Vector2(300f, 16f), new Vector2(0f, 17f));
+        RectTransform barraRT = CriarImagem("BarraVida", trilho, corVidaCheia, new Vector2(300f, 16f), Vector2.zero);
         barraRT.anchorMin = new Vector2(0f, 0.5f);
         barraRT.anchorMax = new Vector2(0f, 0.5f);
         barraRT.pivot = new Vector2(0f, 0.5f);
         barra = barraRT.GetComponent<Image>();
-        barra.raycastTarget = false;
 
-        textoReserva = CriarTexto("Reserva", rt, "Reserva: 0", 18f, new Color(0.86f, 0.9f, 1f, 1f),
-            new Vector2(350f, 26f), new Vector2(0f, -39f), TextAlignmentOptions.Center);
+        textoContadores = CriarTexto("Contadores", rt, "", 14f, new Color(0.82f, 0.86f, 0.94f, 1f),
+            new Vector2(320f, 24f), new Vector2(0f, -8f), TextAlignmentOptions.Center);
+        textoContadores.enableWordWrapping = false;
 
-        textoAcoes = CriarTexto("Acoes", rt, "Ações: 0/3", 18f, new Color(1f, 0.86f, 0.4f, 1f),
-            new Vector2(350f, 26f), new Vector2(0f, -66f), TextAlignmentOptions.Center);
+        textoAcoes = CriarTexto("AcoesTitulo", rt, "AÇÕES", 12f, new Color(1f, 0.86f, 0.4f, 1f),
+            new Vector2(70f, 20f), new Vector2(-105f, -39f), TextAlignmentOptions.Center);
+
+        GameObject contObj = new GameObject("PipsAcoes", typeof(RectTransform));
+        containerAcoes = contObj.GetComponent<RectTransform>();
+        containerAcoes.SetParent(rt, false);
+        containerAcoes.sizeDelta = new Vector2(190f, 22f);
+        containerAcoes.anchoredPosition = new Vector2(35f, -39f);
 
         return rt;
     }
 
-    private void AtualizarPainel(TMP_Text textoVida, TMP_Text textoReserva, Image barra, string nome,
-        int atual, int maximo, int reserva, Color corNome)
+    private void AtualizarPainel(TMP_Text textoVida, string nome, int atual, int maximo, bool player)
     {
         maximo = Mathf.Max(1, maximo);
         atual = Mathf.Clamp(atual, 0, maximo);
+        float proporcao = (float)atual / maximo;
 
         if (textoVida != null)
-        {
             textoVida.text = $"<b>{nome}</b>   {atual}/{maximo} VIDA";
-            textoVida.color = Color.white;
-        }
 
-        if (textoReserva != null)
-            textoReserva.text = $"Reserva: {Mathf.Max(0, reserva)} carta(s)";
+        if (player)
+            alvoVidaPlayer = proporcao;
+        else
+            alvoVidaInimigo = proporcao;
+    }
 
-        if (barra != null)
+    private void AtualizarBarraVisual(Image barra, float proporcao)
+    {
+        if (barra == null)
+            return;
+        proporcao = Mathf.Clamp01(proporcao);
+        barra.rectTransform.sizeDelta = new Vector2(300f * proporcao, 16f);
+        Color baseCor = Color.Lerp(corVidaBaixa, corVidaCheia, proporcao);
+        if (proporcao <= limiteVidaBaixa && proporcao > 0f)
         {
-            float proporcao = (float)atual / maximo;
-            RectTransform rt = barra.rectTransform;
-            rt.sizeDelta = new Vector2(350f * proporcao, 22f);
-            barra.color = Color.Lerp(corVidaBaixa, corVidaCheia, proporcao);
+            float pulso = 0.72f + 0.28f * (Mathf.Sin(Time.unscaledTime * 7f) * 0.5f + 0.5f);
+            baseCor = new Color(baseCor.r, baseCor.g, baseCor.b, pulso);
+        }
+        barra.color = baseCor;
+    }
+
+    private void RecriarPips(RectTransform container, List<Image> lista, int quantidade)
+    {
+        if (container == null)
+            return;
+        for (int i = container.childCount - 1; i >= 0; i--)
+            Destroy(container.GetChild(i).gameObject);
+        lista.Clear();
+
+        float tamanho = 14f;
+        float espaco = 8f;
+        float total = quantidade * tamanho + Mathf.Max(0, quantidade - 1) * espaco;
+        float inicio = -total * 0.5f + tamanho * 0.5f;
+        for (int i = 0; i < quantidade; i++)
+        {
+            RectTransform rt = CriarImagem("Acao" + (i + 1), container, corAcaoGasta, new Vector2(tamanho, tamanho),
+                new Vector2(inicio + i * (tamanho + espaco), 0f));
+            lista.Add(rt.GetComponent<Image>());
         }
     }
 
-    private IEnumerator AnimarDano(RectTransform painel, int dano, Color corBase)
+    private void AtualizarPips(List<Image> lista, int disponiveis)
+    {
+        for (int i = 0; i < lista.Count; i++)
+        {
+            if (lista[i] != null)
+                lista[i].color = i < disponiveis ? corAcaoDisponivel : corAcaoGasta;
+        }
+    }
+
+    private IEnumerator AnimarDano(RectTransform painel, int dano)
     {
         if (painel == null)
             yield break;
 
-        TMP_Text texto = CriarTexto("DanoFlutuante", painel, $"-{Mathf.Max(0, dano)}", 42f,
-            new Color(1f, 0.3f, 0.3f, 1f), new Vector2(180f, 70f), new Vector2(0f, -80f), TextAlignmentOptions.Center);
+        TMP_Text texto = CriarTexto("DanoFlutuante", painel, $"-{Mathf.Max(0, dano)}", 28f,
+            new Color(1f, 0.35f, 0.35f, 1f), new Vector2(120f, 42f), new Vector2(0f, -78f), TextAlignmentOptions.Center);
+        texto.fontStyle = FontStyles.Bold;
         RectTransform rt = texto.rectTransform;
         Vector2 inicio = rt.anchoredPosition;
-        Vector2 fim = inicio + new Vector2(0f, 85f);
+        Vector2 fim = inicio + new Vector2(0f, 55f);
+        StartCoroutine(AnimarImpactoPainel(painel));
 
-        float duracao = 0.7f;
         float t = 0f;
-        while (t < duracao)
+        while (t < 0.62f)
         {
             t += Time.unscaledDeltaTime;
-            float p = Mathf.Clamp01(t / duracao);
+            float p = Mathf.Clamp01(t / 0.62f);
             rt.anchoredPosition = Vector2.Lerp(inicio, fim, p);
-            rt.localScale = Vector3.one * Mathf.Lerp(0.75f, 1.15f, Mathf.Sin(p * Mathf.PI));
             Color c = texto.color;
             c.a = 1f - p;
             texto.color = c;
             yield return null;
         }
-
         if (texto != null)
             Destroy(texto.gameObject);
     }
 
-    private IEnumerator RotinaMensagem(string mensagem, float duracao, int id)
+    private IEnumerator AnimarImpactoPainel(RectTransform painel)
     {
-        textoEstadoCampo.text = mensagem;
-        yield return new WaitForSecondsRealtime(Mathf.Max(0.1f, duracao));
+        if (painel == null)
+            yield break;
 
-        if (id == mensagemTemporariaId && textoEstadoCampo != null)
-            textoEstadoCampo.text = "";
+        Vector2 origem = painel.anchoredPosition;
+        Image flash = CriarImagem("FlashImpacto", painel, new Color(1f, 1f, 1f, 0.34f), painel.sizeDelta, Vector2.zero).GetComponent<Image>();
+        flash.transform.SetAsLastSibling();
+
+        float t = 0f;
+        const float duracao = 0.28f;
+        while (t < duracao)
+        {
+            t += Time.unscaledDeltaTime;
+            float p = Mathf.Clamp01(t / duracao);
+            float intensidade = (1f - p) * 8f;
+            painel.anchoredPosition = origem + new Vector2(Random.Range(-intensidade, intensidade), Random.Range(-intensidade, intensidade));
+            Color c = flash.color;
+            c.a = 0.34f * (1f - p);
+            flash.color = c;
+            yield return null;
+        }
+        painel.anchoredPosition = origem;
+        if (flash != null)
+            Destroy(flash.gameObject);
     }
 
     private RectTransform CriarImagem(string nome, Transform parent, Color cor, Vector2 tamanho, Vector2 posicao)
@@ -294,14 +415,13 @@ public class HUDDuelistasCombateUI : MonoBehaviour
         rt.SetParent(parent, false);
         rt.sizeDelta = tamanho;
         rt.anchoredPosition = posicao;
-
         TextMeshProUGUI tmp = obj.GetComponent<TextMeshProUGUI>();
         tmp.text = texto;
         tmp.fontSize = tamanhoFonte;
         tmp.color = cor;
         tmp.alignment = alinhamento;
         tmp.raycastTarget = false;
-        tmp.enableWordWrapping = true;
+        tmp.enableWordWrapping = false;
         return tmp;
     }
 }

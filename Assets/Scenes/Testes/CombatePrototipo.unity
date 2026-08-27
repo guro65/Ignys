@@ -1600,6 +1600,59 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 268223531}
   m_CullTransparentMesh: 1
+--- !u!1 &361987891
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 361987893}
+  - component: {fileID: 361987892}
+  m_Layer: 0
+  m_Name: Feedback
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &361987892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 361987891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5d1200ab2354614eb9097a8d5fc1179, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FeedbackCartasCombateUI
+  fonteEstadoCarta: 11
+  fonteEfeitos: 10
+  fontePreview: 14
+  fonteHover: 13
+  corPronta: {r: 0.22, g: 0.9, b: 0.42, a: 0.95}
+  corEspera: {r: 1, g: 0.62, b: 0.18, a: 0.95}
+  corUsada: {r: 0.62, g: 0.66, b: 0.75, a: 0.95}
+  corAlvoAtaque: {r: 1, g: 0.25, b: 0.25, a: 1}
+  corAlvoAliado: {r: 0.25, g: 0.85, b: 1, a: 1}
+--- !u!4 &361987893
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 361987891}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.44718, y: 1.62878, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &376237888
 GameObject:
   m_ObjectHideFlags: 0
@@ -1969,6 +2022,7 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1339993155}
   - {fileID: 1985776196}
   - {fileID: 1040617658}
   - {fileID: 8275695960487948147}
@@ -1976,7 +2030,6 @@ RectTransform:
   - {fileID: 193606927}
   - {fileID: 17327662}
   - {fileID: 792231118}
-  - {fileID: 1339993155}
   - {fileID: 872864511}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -2351,6 +2404,57 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 463940629}
   m_CullTransparentMesh: 1
+--- !u!1 &481094131
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 481094133}
+  - component: {fileID: 481094132}
+  m_Layer: 0
+  m_Name: Notificacao
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &481094132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481094131}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34387b7f6476a65448a56f44f1f19833, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NotificacaoJogoUI
+  tamanhoFonteNotificacao: 18
+  tamanhoFonteBanner: 28
+  tamanhoFonteConfirmacao: 18
+  corFundo: {r: 0.035, g: 0.045, b: 0.075, a: 0.94}
+  corPlayer: {r: 0.25, g: 0.72, b: 1, a: 1}
+  corInimigo: {r: 1, g: 0.32, b: 0.38, a: 1}
+  corAviso: {r: 1, g: 0.72, b: 0.22, a: 1}
+--- !u!4 &481094133
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481094131}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.44718, y: 1.62878, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &497438491
 GameObject:
   m_ObjectHideFlags: 0
@@ -4121,6 +4225,8 @@ MonoBehaviour:
   hudDuelistasUI: {fileID: 0}
   resultadoCombateUI: {fileID: 0}
   animadorEntradaDeck: {fileID: 0}
+  notificacaoJogoUI: {fileID: 0}
+  feedbackCartasUI: {fileID: 0}
   organizadorDeckInimigo: {fileID: 0}
   cenaRetornoFallback: 
   combateIniciado: 0
@@ -5308,7 +5414,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -6277,6 +6383,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UICombateCarta
   combateAmigavel: {fileID: 783646515}
   painelAcoesCarta: {fileID: 3731387195723986661}
+  botaoAtacarAcao: {fileID: 0}
+  botaoHabilidadeAcao: {fileID: 0}
+  botaoVoltarDeckAcao: {fileID: 0}
+  botaoReservaAcao: {fileID: 0}
   painelListaHabilidades: {fileID: 2003883509}
   botoesHabilidades:
   - {fileID: 2046715472}
@@ -7368,7 +7478,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Button
+  m_text: Confirmar
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -7401,7 +7511,7 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -10317,8 +10427,12 @@ MonoBehaviour:
   corInimigo: {r: 1, g: 0.32, b: 0.38, a: 1}
   corVidaCheia: {r: 0.25, g: 0.9, b: 0.35, a: 1}
   corVidaBaixa: {r: 1, g: 0.25, b: 0.25, a: 1}
+  corAcaoDisponivel: {r: 1, g: 0.82, b: 0.22, a: 1}
+  corAcaoGasta: {r: 0.24, g: 0.27, b: 0.34, a: 1}
   posicaoHUDPlayer: {x: 30, y: -180}
   posicaoHUDInimigo: {x: -30, y: -30}
+  velocidadeAnimacaoVida: 6
+  limiteVidaBaixa: 0.25
 --- !u!4 &2106239710
 Transform:
   m_ObjectHideFlags: 0
@@ -12135,3 +12249,5 @@ SceneRoots:
   - {fileID: 400104834}
   - {fileID: 437503470}
   - {fileID: 767530481}
+  - {fileID: 361987893}
+  - {fileID: 481094133}

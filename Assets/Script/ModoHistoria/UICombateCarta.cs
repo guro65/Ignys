@@ -11,6 +11,12 @@ public class UICombateCarta : MonoBehaviour
     [Header("Painel de ações")]
     public GameObject painelAcoesCarta;
 
+    [Header("Botões de ação - opcionais / encontrados automaticamente")]
+    public Button botaoAtacarAcao;
+    public Button botaoHabilidadeAcao;
+    public Button botaoVoltarDeckAcao;
+    public Button botaoReservaAcao;
+
     [Header("Painel de lista de habilidades")]
     public GameObject painelListaHabilidades;
     public Button[] botoesHabilidades = new Button[4];
@@ -32,7 +38,7 @@ public class UICombateCarta : MonoBehaviour
     public GameObject painelEscolhaAlvo;
     public TMP_Text textoAlvoSelecionado;
 
-    [Header("Textos do hover")]
+    [Header("Textos do hover antigo - mantidos como fallback")]
     public GameObject painelInfoHover;
     public TMP_Text textoNome;
     public TMP_Text textoDano;
@@ -43,29 +49,38 @@ public class UICombateCarta : MonoBehaviour
     public GameObject cartaSelecionada;
 
     private Camera cameraPrincipal;
+    private FeedbackCartasCombateUI feedbackCartasUI;
 
     private void Start()
     {
         cameraPrincipal = Camera.main;
+        if (combateAmigavel == null)
+            combateAmigavel = FindObjectOfType<CombateAmigavel>();
+
+        feedbackCartasUI = FeedbackCartasCombateUI.ObterOuCriar();
+        if (feedbackCartasUI != null && combateAmigavel != null)
+            feedbackCartasUI.Configurar(combateAmigavel);
 
         ConfigurarBotoesHabilidades();
         ConfigurarBotoesConfirmacaoHabilidade();
         ConfigurarBotaoHabilidadeConjunto();
+        DescobrirBotoesDeAcaoAutomaticamente();
 
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(false);
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (painelEscolhaAlvo != null)
             painelEscolhaAlvo.SetActive(false);
-
         if (painelInfoHover != null)
             painelInfoHover.SetActive(false);
+    }
+
+    private void LateUpdate()
+    {
+        AtualizarInteratividadeBotoes();
     }
 
     private void ConfigurarBotoesHabilidades()
@@ -76,10 +91,8 @@ public class UICombateCarta : MonoBehaviour
         for (int i = 0; i < botoesHabilidades.Length; i++)
         {
             int indice = i;
-
             if (botoesHabilidades[i] == null)
                 continue;
-
             botoesHabilidades[i].onClick.RemoveAllListeners();
             botoesHabilidades[i].onClick.AddListener(() => BotaoSelecionarHabilidade(indice));
         }
@@ -110,6 +123,57 @@ public class UICombateCarta : MonoBehaviour
         }
     }
 
+    private void DescobrirBotoesDeAcaoAutomaticamente()
+    {
+        Button[] botoes = GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < botoes.Length; i++)
+        {
+            Button btn = botoes[i];
+            if (btn == null)
+                continue;
+
+            string texto = btn.name.ToLowerInvariant();
+            TMP_Text tmp = btn.GetComponentInChildren<TMP_Text>(true);
+            if (tmp != null)
+                texto += " " + tmp.text.ToLowerInvariant();
+
+            bool dentroPainelAcao = painelAcoesCarta != null && btn.transform.IsChildOf(painelAcoesCarta.transform);
+
+            if (botaoAtacarAcao == null && dentroPainelAcao && texto.Contains("atacar"))
+                botaoAtacarAcao = btn;
+            else if (botaoHabilidadeAcao == null && dentroPainelAcao && texto.Contains("habil"))
+                botaoHabilidadeAcao = btn;
+            else if (botaoVoltarDeckAcao == null && dentroPainelAcao && (texto.Contains("voltar") || texto.Contains("deck")))
+                botaoVoltarDeckAcao = btn;
+            else if (botaoReservaAcao == null && (texto.Contains("reserva") || texto.Contains("resgatar")))
+                botaoReservaAcao = btn;
+        }
+    }
+
+    private void AtualizarInteratividadeBotoes()
+    {
+        if (combateAmigavel == null)
+            return;
+
+        if (botaoAtacarAcao != null)
+            botaoAtacarAcao.interactable = cartaSelecionada != null && combateAmigavel.PodeAtacarCartaParaUI(cartaSelecionada);
+        if (botaoHabilidadeAcao != null)
+            botaoHabilidadeAcao.interactable = cartaSelecionada != null && combateAmigavel.PodeUsarHabilidadeCartaParaUI(cartaSelecionada);
+        if (botaoVoltarDeckAcao != null)
+            botaoVoltarDeckAcao.interactable = cartaSelecionada != null && combateAmigavel.PodeVoltarCartaParaDeckParaUI(cartaSelecionada);
+        if (botaoReservaAcao != null)
+            botaoReservaAcao.interactable = combateAmigavel.PodeUsarReservaParaUI();
+
+        if (painelListaHabilidades != null && painelListaHabilidades.activeSelf && cartaSelecionada != null && botoesHabilidades != null)
+        {
+            for (int i = 0; i < botoesHabilidades.Length; i++)
+            {
+                if (botoesHabilidades[i] != null && botoesHabilidades[i].gameObject.activeSelf)
+                    botoesHabilidades[i].interactable = combateAmigavel.PodeUsarHabilidadeIndiceParaUI(cartaSelecionada, i);
+            }
+        }
+    }
+
     private void AtualizarBotaoHabilidadeConjunto()
     {
         if (botaoHabilidadeConjunto == null)
@@ -117,6 +181,7 @@ public class UICombateCarta : MonoBehaviour
 
         bool podeMostrar = combateAmigavel != null && cartaSelecionada != null && combateAmigavel.CartaPossuiHabilidadeConjuntoDisponivel(cartaSelecionada);
         botaoHabilidadeConjunto.gameObject.SetActive(podeMostrar);
+        botaoHabilidadeConjunto.interactable = podeMostrar && combateAmigavel.PodeUsarHabilidadeCartaParaUI(cartaSelecionada);
 
         if (podeMostrar && textoBotaoHabilidadeConjunto != null)
             textoBotaoHabilidadeConjunto.text = combateAmigavel.ObterNomePrimeiraHabilidadeConjuntoDisponivel(cartaSelecionada);
@@ -124,45 +189,34 @@ public class UICombateCarta : MonoBehaviour
 
     public void AbrirPainelCarta(GameObject carta)
     {
-        if (carta == null)
-            return;
-
-        if (!carta.CompareTag("CartaPlayer"))
+        if (carta == null || !carta.CompareTag("CartaPlayer"))
             return;
 
         cartaSelecionada = carta;
-
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(true);
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (painelEscolhaAlvo != null)
             painelEscolhaAlvo.SetActive(false);
 
         AtualizarBotaoHabilidadeConjunto();
+        AtualizarInteratividadeBotoes();
     }
 
     public void FecharPainelCarta()
     {
         cartaSelecionada = null;
-
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(false);
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (painelEscolhaAlvo != null)
             painelEscolhaAlvo.SetActive(false);
-
         if (botaoHabilidadeConjunto != null)
             botaoHabilidadeConjunto.gameObject.SetActive(false);
     }
@@ -171,19 +225,15 @@ public class UICombateCarta : MonoBehaviour
     {
         if (cartaObj == null)
             return;
-
         Carta carta = cartaObj.GetComponent<Carta>();
         if (carta == null)
             return;
 
         cartaSelecionada = cartaObj;
-
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(true);
 
@@ -194,22 +244,19 @@ public class UICombateCarta : MonoBehaviour
     private void AtualizarBotoesListaHabilidades(Carta carta)
     {
         int limite = carta != null ? Mathf.Clamp(carta.quantidadeHabilidades, 0, 4) : 0;
-
         for (int i = 0; i < 4; i++)
         {
             HabilidadeCarta habilidade = carta != null ? carta.ObterHabilidade(i) : null;
             bool mostrarBotao = i < limite && habilidade != null;
 
             if (botoesHabilidades != null && i < botoesHabilidades.Length && botoesHabilidades[i] != null)
+            {
                 botoesHabilidades[i].gameObject.SetActive(mostrarBotao);
+                botoesHabilidades[i].interactable = mostrarBotao && combateAmigavel != null && combateAmigavel.PodeUsarHabilidadeIndiceParaUI(cartaSelecionada, i);
+            }
 
             if (textosBotoesHabilidades != null && i < textosBotoesHabilidades.Length && textosBotoesHabilidades[i] != null)
-            {
-                if (mostrarBotao)
-                    textosBotoesHabilidades[i].text = habilidade.nomeHabilidade;
-                else
-                    textosBotoesHabilidades[i].text = "";
-            }
+                textosBotoesHabilidades[i].text = mostrarBotao ? habilidade.nomeHabilidade : "";
         }
     }
 
@@ -217,19 +264,14 @@ public class UICombateCarta : MonoBehaviour
     {
         if (habilidade == null)
             return;
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(true);
-
         if (textoNomeHabilidade != null)
             textoNomeHabilidade.text = !string.IsNullOrEmpty(habilidade.nomeHabilidade) ? habilidade.nomeHabilidade : habilidade.nomeBotaoConjunto;
-
         if (textoDescricaoHabilidade != null)
             textoDescricaoHabilidade.text = habilidade.descricaoHabilidade;
-
         if (textoCustoHabilidade != null)
             textoCustoHabilidade.text = textoEstado;
     }
@@ -244,16 +286,12 @@ public class UICombateCarta : MonoBehaviour
     {
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (painelEscolhaAlvo != null)
             painelEscolhaAlvo.SetActive(false);
-
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(false);
-
         if (botaoHabilidadeConjunto != null)
             botaoHabilidadeConjunto.gameObject.SetActive(false);
     }
@@ -262,34 +300,30 @@ public class UICombateCarta : MonoBehaviour
     {
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(false);
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (painelEscolhaAlvo != null)
             painelEscolhaAlvo.SetActive(true);
-
         if (textoAlvoSelecionado != null)
+        {
             textoAlvoSelecionado.text = mensagem;
+            textoAlvoSelecionado.enableAutoSizing = true;
+            textoAlvoSelecionado.fontSizeMin = 10f;
+        }
     }
 
     public void SairModoEscolhaAlvo()
     {
         if (painelEscolhaAlvo != null)
             painelEscolhaAlvo.SetActive(false);
-
         if (painelAcoesCarta != null)
             painelAcoesCarta.SetActive(false);
-
         if (painelListaHabilidades != null)
             painelListaHabilidades.SetActive(false);
-
         if (painelConfirmacaoHabilidade != null)
             painelConfirmacaoHabilidade.SetActive(false);
-
         if (textoAlvoSelecionado != null)
             textoAlvoSelecionado.text = "";
     }
@@ -298,134 +332,83 @@ public class UICombateCarta : MonoBehaviour
     {
         if (textoAlvoSelecionado == null)
             return;
-
         Carta carta = alvo != null ? alvo.GetComponent<Carta>() : null;
-
-        if (carta == null)
-        {
-            textoAlvoSelecionado.text = "Nenhum alvo";
-            return;
-        }
-
-        textoAlvoSelecionado.text = $"Alvo: {carta.nome}";
+        textoAlvoSelecionado.text = carta == null ? "Nenhum alvo" : $"Alvo: {carta.nome}";
     }
 
     public void BotaoHabilidadeConjunto()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoAbrirHabilidadeConjuntoCartaSelecionada();
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoAbrirHabilidadeConjuntoCartaSelecionada();
     }
 
-    public void BotaoFechar()
-    {
-        FecharPainelCarta();
-    }
+    public void BotaoFechar() => FecharPainelCarta();
 
     public void BotaoVoltarDeck()
     {
-        if (combateAmigavel == null || cartaSelecionada == null)
-            return;
-
-        combateAmigavel.VoltarCartaPlayerParaDeck(cartaSelecionada);
+        if (combateAmigavel != null && cartaSelecionada != null)
+            combateAmigavel.VoltarCartaPlayerParaDeck(cartaSelecionada);
     }
 
     public void BotaoAtacar()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoAtacarCartaSelecionada();
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoAtacarCartaSelecionada();
     }
 
     public void BotaoHabilidade()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoAbrirListaHabilidadesCartaSelecionada();
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoAbrirListaHabilidadesCartaSelecionada();
     }
 
     public void BotaoSelecionarHabilidade(int indice)
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoSelecionarHabilidadeCartaSelecionada(indice);
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoSelecionarHabilidadeCartaSelecionada(indice);
     }
 
-    public void BotaoSelecionarHabilidade1()
-    {
-        BotaoSelecionarHabilidade(0);
-    }
-
-    public void BotaoSelecionarHabilidade2()
-    {
-        BotaoSelecionarHabilidade(1);
-    }
-
-    public void BotaoSelecionarHabilidade3()
-    {
-        BotaoSelecionarHabilidade(2);
-    }
-
-    public void BotaoSelecionarHabilidade4()
-    {
-        BotaoSelecionarHabilidade(3);
-    }
+    public void BotaoSelecionarHabilidade1() => BotaoSelecionarHabilidade(0);
+    public void BotaoSelecionarHabilidade2() => BotaoSelecionarHabilidade(1);
+    public void BotaoSelecionarHabilidade3() => BotaoSelecionarHabilidade(2);
+    public void BotaoSelecionarHabilidade4() => BotaoSelecionarHabilidade(3);
 
     public void BotaoConfirmarUsoHabilidade()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoConfirmarUsoHabilidadeSelecionada();
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoConfirmarUsoHabilidadeSelecionada();
     }
 
     public void BotaoCancelarUsoHabilidade()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoCancelarConfirmacaoHabilidade();
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoCancelarConfirmacaoHabilidade();
     }
 
-    public void BotaoHabilidadeAntigo()
-    {
-        BotaoHabilidade();
-    }
+    public void BotaoHabilidadeAntigo() => BotaoHabilidade();
 
     public void BotaoPassarTurno()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.PassarTurno();
+        if (combateAmigavel != null)
+            combateAmigavel.PassarTurno();
     }
 
     public void BotaoConfirmarAlvo()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.ConfirmarAlvoSelecionado();
+        if (combateAmigavel != null)
+            combateAmigavel.ConfirmarAlvoSelecionado();
     }
 
     public void BotaoCancelarAlvo()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.CancelarEscolhaAlvo();
+        if (combateAmigavel != null)
+            combateAmigavel.CancelarEscolhaAlvo();
     }
 
     public void BotaoResgatarCarta()
     {
-        if (combateAmigavel == null)
-            return;
-
-        combateAmigavel.BotaoResgatarCartaPlayer();
+        if (combateAmigavel != null)
+            combateAmigavel.BotaoResgatarCartaPlayer();
     }
 
     public void AtualizarHoverCartaTabuleiro()
@@ -443,14 +426,7 @@ public class UICombateCarta : MonoBehaviour
         }
 
         GameObject objeto = hit.collider.gameObject;
-
-        if (!objeto.CompareTag("CartaPlayer") && !objeto.CompareTag("CartaInimigo"))
-        {
-            OcultarInfoHover();
-            return;
-        }
-
-        if (!EstaNoTabuleiro(objeto.transform))
+        if ((!objeto.CompareTag("CartaPlayer") && !objeto.CompareTag("CartaInimigo")) || !EstaNoTabuleiro(objeto.transform))
         {
             OcultarInfoHover();
             return;
@@ -463,6 +439,17 @@ public class UICombateCarta : MonoBehaviour
             return;
         }
 
+        if (feedbackCartasUI == null)
+            feedbackCartasUI = FeedbackCartasCombateUI.ObterOuCriar();
+
+        if (feedbackCartasUI != null)
+        {
+            if (painelInfoHover != null)
+                painelInfoHover.SetActive(false);
+            feedbackCartasUI.MostrarHover(objeto);
+            return;
+        }
+
         MostrarInfoHover(carta);
     }
 
@@ -470,32 +457,28 @@ public class UICombateCarta : MonoBehaviour
     {
         if (painelInfoHover != null)
             painelInfoHover.SetActive(true);
-
         if (textoNome != null)
-            textoNome.text = carta.nome;
-
+            textoNome.text = $"{carta.nome} • {carta.raridade}";
         if (textoDano != null)
-            textoDano.text = "Dano: " + carta.dano;
-
+            textoDano.text = "ATQ " + carta.dano;
         if (textoVida != null)
-            textoVida.text = "Vida: " + carta.vida;
-
+            textoVida.text = "VIDA " + carta.vida;
         if (textoDefesa != null)
-            textoDefesa.text = "Defesa: " + carta.defesa;
+            textoDefesa.text = "DEF " + carta.defesa;
     }
 
     private void OcultarInfoHover()
     {
         if (painelInfoHover != null)
             painelInfoHover.SetActive(false);
+        if (feedbackCartasUI != null)
+            feedbackCartasUI.OcultarHover();
     }
 
     private bool EstaNoTabuleiro(Transform cartaTransform)
     {
         if (cartaTransform == null || cartaTransform.parent == null)
             return false;
-
-        return cartaTransform.parent.CompareTag("SlotTabuleiroPlayer") ||
-               cartaTransform.parent.CompareTag("SlotTabuleiroInimigo");
+        return cartaTransform.parent.CompareTag("SlotTabuleiroPlayer") || cartaTransform.parent.CompareTag("SlotTabuleiroInimigo");
     }
 }
