@@ -105,6 +105,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Pacote
   nomePacote: 'Pacote da Alma '
+  imagemPacote: {fileID: -4191793867482455471, guid: 77428902cdd4e664f99bdbb3e0c94766, type: 3}
   cartasDisponiveis:
   - {fileID: 4378131064567063481, guid: 296d007bf173fb5418736d584a06cf13, type: 3}
   - {fileID: 1236798707688586510, guid: c6248202ad374e8449e7a837632ddf2b, type: 3}
@@ -112,6 +113,15 @@ MonoBehaviour:
   - {fileID: 2789321674176604839, guid: 4fb3bb245a418164eb257b670b0dd646, type: 3}
   - {fileID: 6838824244425776796, guid: 69d5b4230c6785745a3caa6e8767dbdb, type: 3}
   - {fileID: 2212147335747805505, guid: 470bc75b2ed8f354f932cfd0c5c07ef8, type: 3}
+  precoPacote: 100
+  chancePacoteLeve: 60
+  chancePacoteMediano: 30
+  chancePacotePesado: 10
+  chancesRaridadeLeve: []
+  chancesRaridadeMediano: []
+  chancesRaridadePesado: []
+  chanceGarantiaMiticoPesado: 50
+  chanceGarantiaScarletPesado: 50
   chancesPorRaridade:
   - raridade: 0
     chance: 60
@@ -121,5 +131,3 @@ MonoBehaviour:
     chance: 10
   - raridade: 5
     chance: 1
-  custoAbrir1: 100
-  custoAbrir10: 800

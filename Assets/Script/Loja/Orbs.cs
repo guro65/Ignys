@@ -21,13 +21,30 @@ public class Orbs : MonoBehaviour
 
     public void AdicionarOrbs(int valor)
     {
+        if (valor <= 0)
+            return;
+
         quantidade += valor;
         Debug.Log($"Orbs adicionados: {valor} | Total: {quantidade}");
     }
 
+    public bool PossuiOrbs(int valor)
+    {
+        if (valor <= 0)
+            return true;
+
+        return quantidade >= valor;
+    }
+
     public bool GastarOrbs(int valor)
     {
-        if (quantidade < valor)
+        if (valor < 0)
+        {
+            Debug.LogWarning("Não é possível gastar uma quantidade negativa de Orbs.");
+            return false;
+        }
+
+        if (!PossuiOrbs(valor))
         {
             Debug.Log("Orbs insuficientes.");
             return false;
