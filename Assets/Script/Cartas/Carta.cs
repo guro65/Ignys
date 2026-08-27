@@ -12,7 +12,7 @@ public class EfeitoHabilidade
     [Header("Chance do efeito")]
     [Range(0f, 100f)] public float chanceAplicar = 100f;
 
-    [Header("Dura??o do efeito")]
+    [Header("Duração do efeito")]
     [Min(1)] public int duracaoTurnos = 1;
 
     [Header("Dano por turno")]
@@ -22,11 +22,12 @@ public class EfeitoHabilidade
 [System.Serializable]
 public class HabilidadeCarta
 {
-    public enum TipoHabilidade { Nenhuma, Dano, Defesa, Buff, Anulacao, Disfarce }
+    public enum TipoHabilidade { Nenhuma, Dano, Defesa, Buff, Anulacao, Disfarce, Invocacao }
     public enum TipoBuff { Nenhum, Vida, Dano, Defesa }
     public enum AlvoHabilidade { Nenhum, PropriaCarta, CartaAliada, CartaInimiga }
+    public enum ModoInvocacao { Unica, EscolhaDoJogador, Aleatoria }
 
-    [Header("Identifica??o")]
+    [Header("Identificação")]
     public string nomeHabilidade;
     [TextArea] public string descricaoHabilidade;
 
@@ -39,8 +40,21 @@ public class HabilidadeCarta
     [Header("Efeitos extras que essa habilidade pode aplicar")]
     public List<EfeitoHabilidade> efeitos = new List<EfeitoHabilidade>();
 
-    [Header("Dura??o para defesa/buff")]
+    [Header("Duração para defesa/buff")]
     [Min(1)] public int duracaoHabilidadeTurnos = 1;
+
+    [Header("Invocação de carta")]
+    [Tooltip("Usado quando Tipo da Habilidade = Invocacao. A habilidade pode ser normal ou especial.")]
+    public ModoInvocacao modoInvocacao = ModoInvocacao.Unica;
+
+    [Tooltip("Cartas que esta habilidade pode invocar. Em Unica, será usada a primeira carta válida. Em EscolhaDoJogador, o player escolhe. Em Aleatoria, uma é sorteada.")]
+    public List<Carta> cartasInvocaveis = new List<Carta>();
+
+    [Tooltip("Ligado: a carta invocada permanece no tabuleiro até ser derrotada. Desligado: desaparece após a quantidade de turnos definida abaixo.")]
+    public bool invocacaoPermanente = true;
+
+    [Tooltip("Quantidade de turnos do DONO da invocação que ela permanece no tabuleiro quando não for permanente.")]
+    [Min(1)] public int turnosInvocacao = 1;
 
     [Header("Cooldown das habilidades comuns")]
     public bool usarCooldown = true;
@@ -71,23 +85,23 @@ public class HabilidadeCarta
     [Tooltip("Inverte verticalmente o efeito desta habilidade especial.")]
     public bool inverterEfeitoHabilidadeEspecialVertical = false;
 
-    [Header("Ativa??o especial por sacrif?cio")]
+    [Header("Ativação especial por sacrifício")]
     public bool exigirSacrificioCartas = false;
     [Min(0)] public int quantidadeCartasParaSacrificar = 0;
 
-    [Header("Ativa??o especial por dano total")]
+    [Header("Ativação especial por dano total")]
     public bool exigirDanoTotalCausado = false;
     [Min(0)] public int danoTotalNecessario = 0;
 
-    [Header("Ativa??o especial por vida")]
+    [Header("Ativação especial por vida")]
     public bool exigirVidaMenorOuIgual = false;
     [Min(0)] public int vidaNecessariaMenorOuIgual = 0;
 
-    [Header("Ativa??o especial por cooldown")]
+    [Header("Ativação especial por cooldown")]
     public bool usarCooldownEspecial = false;
     [Min(0)] public int cooldownEspecialTurnos = 0;
 
-    [Header("Ativa??o em conjunto")]
+    [Header("Ativação em conjunto")]
     public bool ativacaoEmConjunto = false;
     public Carta cartaNecessariaNoTabuleiro;
     public string nomeBotaoConjunto = "Habilidade em Conjunto";
@@ -119,6 +133,11 @@ public class HabilidadeCarta
         if (tipoHabilidade == TipoHabilidade.Nenhuma)
             return false;
 
+        // Invocação não precisa de uma carta-alvo já existente.
+        // Depois da confirmação o sistema pede qual carta/slot será usado.
+        if (tipoHabilidade == TipoHabilidade.Invocacao)
+            return PossuiInvocacaoValida();
+
         if (alvoHabilidade == AlvoHabilidade.Nenhum)
             return false;
 
@@ -132,6 +151,48 @@ public class HabilidadeCarta
         }
 
         return true;
+    }
+
+    public bool PossuiInvocacaoValida()
+    {
+        if (cartasInvocaveis == null || cartasInvocaveis.Count == 0)
+            return false;
+
+        for (int i = 0; i < cartasInvocaveis.Count; i++)
+        {
+            if (cartasInvocaveis[i] != null)
+                return true;
+        }
+
+        return false;
+    }
+
+    public List<Carta> ObterCartasInvocaveisValidas()
+    {
+        List<Carta> validas = new List<Carta>();
+
+        if (cartasInvocaveis == null)
+            return validas;
+
+        for (int i = 0; i < cartasInvocaveis.Count; i++)
+        {
+            if (cartasInvocaveis[i] != null)
+                validas.Add(cartasInvocaveis[i]);
+        }
+
+        return validas;
+    }
+
+    public Carta ObterPrimeiraCartaInvocavel()
+    {
+        List<Carta> validas = ObterCartasInvocaveisValidas();
+        return validas.Count > 0 ? validas[0] : null;
+    }
+
+    public Carta SortearCartaInvocavel()
+    {
+        List<Carta> validas = ObterCartasInvocaveisValidas();
+        return validas.Count > 0 ? validas[Random.Range(0, validas.Count)] : null;
     }
 
     public bool PossuiEfeito(EfeitoHabilidade.TipoEfeito tipo)
@@ -155,7 +216,7 @@ public class Carta : MonoBehaviour
     public enum Raridade { Comum, Epico, Mitico, Prodigio, Celeste, Scarlet, Deus }
     public enum Estrela { UmaEstrela = 1, DuasEstrelas = 2, TresEstrelas = 3 }
 
-    [Header("Estat?sticas da Carta")]
+    [Header("Estatísticas da Carta")]
     public string nome;
 
     [Header("Estrelas da Carta")]

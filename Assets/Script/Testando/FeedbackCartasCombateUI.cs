@@ -419,6 +419,16 @@ public class FeedbackCartasCombateUI : MonoBehaviour
             partes.Add($"<color=#FFE66A>O{Mathf.Max(0, carta.turnosSobrecargaRestantes)}</color>");
         if (carta.disfarceAtivo)
             partes.Add("<color=#C58CFF>D</color>");
+
+        CartaInvocadaRuntime invocada = carta.GetComponent<CartaInvocadaRuntime>();
+        if (invocada != null)
+        {
+            if (invocada.permanente)
+                partes.Add("<color=#7DE8FF>INV</color>");
+            else
+                partes.Add($"<color=#7DE8FF>I{Mathf.Max(0, invocada.turnosRestantes)}</color>");
+        }
+
         return string.Join("  ", partes);
     }
 
@@ -433,6 +443,16 @@ public class FeedbackCartasCombateUI : MonoBehaviour
             partes.Add($"<color=#FFE66A>Sobrecarga {carta.turnosSobrecargaRestantes}t</color>");
         if (carta.disfarceAtivo)
             partes.Add("<color=#C58CFF>Disfarce</color>");
+
+        CartaInvocadaRuntime invocada = carta.GetComponent<CartaInvocadaRuntime>();
+        if (invocada != null)
+        {
+            if (invocada.permanente)
+                partes.Add("<color=#7DE8FF>Invocada • permanente</color>");
+            else
+                partes.Add($"<color=#7DE8FF>Invocada • {Mathf.Max(0, invocada.turnosRestantes)}t</color>");
+        }
+
         return string.Join(" • ", partes);
     }
 

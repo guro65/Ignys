@@ -117,12 +117,36 @@ MonoBehaviour:
   - {fileID: 6838824244425776796, guid: 69d5b4230c6785745a3caa6e8767dbdb, type: 3}
   - {fileID: 2212147335747805505, guid: 470bc75b2ed8f354f932cfd0c5c07ef8, type: 3}
   precoPacote: 100
-  chancePacoteLeve: 60
+  chancePacoteLeve: 80
   chancePacoteMediano: 30
   chancePacotePesado: 10
-  chancesRaridadeLeve: []
-  chancesRaridadeMediano: []
-  chancesRaridadePesado: []
+  chancesRaridadeLeve:
+  - raridade: 0
+    chance: 60
+  - raridade: 1
+    chance: 35
+  - raridade: 2
+    chance: 10
+  - raridade: 5
+    chance: 1
+  chancesRaridadeMediano:
+  - raridade: 0
+    chance: 55
+  - raridade: 1
+    chance: 40
+  - raridade: 2
+    chance: 15
+  - raridade: 5
+    chance: 2
+  chancesRaridadePesado:
+  - raridade: 0
+    chance: 30
+  - raridade: 1
+    chance: 50
+  - raridade: 2
+    chance: 60
+  - raridade: 5
+    chance: 5
   chanceGarantiaMiticoPesado: 50
   chanceGarantiaScarletPesado: 50
   chancesPorRaridade:
@@ -134,3 +158,4 @@ MonoBehaviour:
     chance: 10
   - raridade: 5
     chance: 1
+  usarAnimacaoDeCompra: 1

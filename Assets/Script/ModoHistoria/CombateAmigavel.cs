@@ -41,6 +41,9 @@ public class CombateAmigavel : MonoBehaviour
     [Tooltip("Pode ficar vazio. Gera preview de dano, status, destaques, hover e feedback nas cartas.")]
     public FeedbackCartasCombateUI feedbackCartasUI;
 
+    [Tooltip("Pode ficar vazio. Gera automaticamente o painel de escolha da carta e dos slots para habilidades de Invocação.")]
+    public SelecaoInvocacaoCombateUI selecaoInvocacaoUI;
+
     [Tooltip("Opcional. Usado apenas para registrar as cartas inimigas instanciadas pelo animador.")]
     public OrganizadorDeckInimigo organizadorDeckInimigo;
 
@@ -693,6 +696,12 @@ public class CombateAmigavel : MonoBehaviour
         if (!EstaEmSlotComTag(carta.transform, tagSlotTabuleiroPlayer))
             return;
 
+        if (carta.GetComponent<CartaInvocadaRuntime>() != null)
+        {
+            Notificar("INVOCAÇÃO • esta carta não pertence ao Deck.", 1.1f);
+            return;
+        }
+
         Transform slotLivreDeck = EncontrarSlotLivre(tagSlotDeckPlayer);
         if (slotLivreDeck == null)
             return;
@@ -1126,6 +1135,12 @@ public class CombateAmigavel : MonoBehaviour
         if (!PodeUsarHabilidade(cartaObj, habilidadePlayerSelecionada, indiceHabilidadePlayerSelecionada, true))
             return;
 
+        if (habilidadePlayerSelecionada.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Invocacao)
+        {
+            IniciarFluxoInvocacaoPlayer();
+            return;
+        }
+
         if (habilidadePlayerSelecionada.alvoHabilidade == HabilidadeCarta.AlvoHabilidade.PropriaCarta)
         {
             if (!PagarCustoEspecialSeNecessario(cartaObj, habilidadePlayerSelecionada, true))
@@ -1177,6 +1192,161 @@ public class CombateAmigavel : MonoBehaviour
         indiceHabilidadePlayerSelecionada = -1;
         cartaPlayerSelecionadaParaHabilidade = null;
         alvoSelecionadoParaHabilidade = null;
+    }
+
+    private void IniciarFluxoInvocacaoPlayer()
+    {
+        if (cartaPlayerSelecionadaParaHabilidade == null || habilidadePlayerSelecionada == null)
+            return;
+
+        if (habilidadePlayerSelecionada.tipoHabilidade != HabilidadeCarta.TipoHabilidade.Invocacao)
+            return;
+
+        List<Transform> slotsLivres = ObterSlotsLivres(tagSlotTabuleiroPlayer);
+        if (slotsLivres.Count == 0)
+        {
+            Notificar("INVOCAÇÃO • não há espaço no tabuleiro.", 1.2f);
+            return;
+        }
+
+        List<Carta> validas = habilidadePlayerSelecionada.ObterCartasInvocaveisValidas();
+        if (validas.Count == 0)
+        {
+            Notificar("INVOCAÇÃO • nenhuma carta foi configurada.", 1.2f);
+            return;
+        }
+
+        selecaoInvocacaoUI = selecaoInvocacaoUI != null ? selecaoInvocacaoUI : SelecaoInvocacaoCombateUI.ObterOuCriar();
+
+        if (uiCombateCarta != null)
+            uiCombateCarta.FecharTodosPaineisDeHabilidade();
+
+        if (habilidadePlayerSelecionada.modoInvocacao == HabilidadeCarta.ModoInvocacao.EscolhaDoJogador && validas.Count > 1)
+        {
+            selecaoInvocacaoUI.MostrarEscolhaCarta(
+                validas,
+                CartaInvocacaoPlayerEscolhida,
+                CancelarFluxoInvocacaoPlayer
+            );
+            return;
+        }
+
+        Carta escolhida = habilidadePlayerSelecionada.modoInvocacao == HabilidadeCarta.ModoInvocacao.Aleatoria
+            ? habilidadePlayerSelecionada.SortearCartaInvocavel()
+            : habilidadePlayerSelecionada.ObterPrimeiraCartaInvocavel();
+
+        CartaInvocacaoPlayerEscolhida(escolhida);
+    }
+
+    private void CartaInvocacaoPlayerEscolhida(Carta cartaPrefab)
+    {
+        if (cartaPrefab == null || cartaPlayerSelecionadaParaHabilidade == null || habilidadePlayerSelecionada == null)
+        {
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        List<Transform> slotsLivres = ObterSlotsLivres(tagSlotTabuleiroPlayer);
+        if (slotsLivres.Count == 0)
+        {
+            Notificar("INVOCAÇÃO • o tabuleiro ficou sem espaço.", 1.2f);
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        selecaoInvocacaoUI = selecaoInvocacaoUI != null ? selecaoInvocacaoUI : SelecaoInvocacaoCombateUI.ObterOuCriar();
+        selecaoInvocacaoUI.MostrarEscolhaPosicao(
+            slotsLivres,
+            cameraPrincipal,
+            cartaPrefab,
+            slot => FinalizarInvocacaoPlayer(cartaPrefab, slot),
+            CancelarFluxoInvocacaoPlayer
+        );
+    }
+
+    private void FinalizarInvocacaoPlayer(Carta cartaPrefab, Transform slotEscolhido)
+    {
+        GameObject usuarioObj = cartaPlayerSelecionadaParaHabilidade;
+        HabilidadeCarta habilidade = habilidadePlayerSelecionada;
+        int indice = indiceHabilidadePlayerSelecionada;
+
+        if (usuarioObj == null || habilidade == null || cartaPrefab == null || slotEscolhido == null)
+        {
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        if (!turnoDoPlayer || combateFinalizado || SlotJaPossuiCarta(slotEscolhido))
+        {
+            Notificar("INVOCAÇÃO • posição indisponível.", 1.1f);
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        if (!PlayerPossuiAcaoDisponivel())
+        {
+            MostrarSemAcoesPlayer();
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        if (!PodeUsarHabilidade(usuarioObj, habilidade, indice, true))
+        {
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        if (!PagarCustoEspecialSeNecessario(usuarioObj, habilidade, true))
+        {
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        // Um sacrifício especial pode alterar o campo. O slot escolhido continua precisando estar livre.
+        if (slotEscolhido == null || SlotJaPossuiCarta(slotEscolhido))
+        {
+            Notificar("INVOCAÇÃO • o slot escolhido não está mais livre.", 1.2f);
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        if (!ConsumirAcaoPlayer("usar uma habilidade de invocação"))
+        {
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        GameObject invocada = CriarCartaInvocada(cartaPrefab, slotEscolhido, true, habilidade);
+        if (invocada == null)
+        {
+            Notificar("INVOCAÇÃO • não foi possível criar a carta.", 1.2f);
+            CancelarFluxoInvocacaoPlayer();
+            return;
+        }
+
+        RegistrarUsoHabilidade(usuarioObj, habilidade, indice);
+        cartasPlayerQueUsaramHabilidadeNesteTurno.Add(usuarioObj);
+        cartasPlayerColocadasNesteTurno.Add(invocada);
+
+        ReproduzirEfeitoVisualHabilidadeEspecial(usuarioObj, invocada, habilidade);
+        Notificar($"{cartaPrefab.nome} foi invocada.", 1.0f);
+
+        LimparSelecaoHabilidadePlayer();
+        AtualizarListasDeCartas();
+        AtualizarTextosDeRecursos();
+        AtualizarHUDDuelistas();
+        VerificarCondicoesDeFimDeCombate();
+    }
+
+    private void CancelarFluxoInvocacaoPlayer()
+    {
+        if (selecaoInvocacaoUI != null)
+            selecaoInvocacaoUI.Fechar();
+
+        LimparSelecaoHabilidadePlayer();
+
+        if (uiCombateCarta != null)
+            uiCombateCarta.FecharTodosPaineisDeHabilidade();
     }
 
     private string ObterMensagemEscolhaAlvoHabilidade(HabilidadeCarta habilidade)
@@ -1238,6 +1408,7 @@ public class CombateAmigavel : MonoBehaviour
         // Cartas colocadas pelo inimigo no turno inimigo anterior agora ficam prontas para agir.
         cartasInimigoColocadasNesteTurno.Clear();
 
+        ProcessarInvocacoesTemporariasNoInicioDoTurno(false);
         ProcessarBuffsTemporariosNoInicioDoTurno(false);
         ProcessarEfeitosNoInicioDoTurno(false);
         ProcessarCooldownsHabilidadesNoInicioDoTurno(false);
@@ -1806,6 +1977,14 @@ public class CombateAmigavel : MonoBehaviour
             if (!PodeUsarHabilidade(cartaObj, habilidade, i, false))
                 continue;
 
+            if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Invocacao)
+            {
+                if (TentarExecutarInvocacaoInimigo(cartaObj, habilidade, i))
+                    return true;
+
+                continue;
+            }
+
             GameObject alvo = EscolherAlvoParaHabilidadeInimigo(cartaObj, habilidade);
             if (alvo == null)
                 continue;
@@ -1823,6 +2002,84 @@ public class CombateAmigavel : MonoBehaviour
         }
 
         return false;
+    }
+
+    private bool TentarExecutarInvocacaoInimigo(GameObject usuarioObj, HabilidadeCarta habilidade, int indiceHabilidade)
+    {
+        if (usuarioObj == null || habilidade == null)
+            return false;
+
+        List<Transform> slotsLivres = ObterSlotsLivres(tagSlotTabuleiroInimigo);
+        if (slotsLivres.Count == 0)
+            return false;
+
+        Carta cartaPrefab = EscolherCartaInvocacaoInimigo(habilidade);
+        if (cartaPrefab == null)
+            return false;
+
+        if (!PagarCustoEspecialSeNecessario(usuarioObj, habilidade, false))
+            return false;
+
+        // Sacrifícios podem mudar a ocupação do campo, então recalculamos depois do custo.
+        slotsLivres = ObterSlotsLivres(tagSlotTabuleiroInimigo);
+        if (slotsLivres.Count == 0)
+            return false;
+
+        if (!ConsumirAcaoInimigo("usar uma habilidade de invocação"))
+            return false;
+
+        Transform slot = slotsLivres[Random.Range(0, slotsLivres.Count)];
+        GameObject invocada = CriarCartaInvocada(cartaPrefab, slot, false, habilidade);
+        if (invocada == null)
+            return false;
+
+        RegistrarUsoHabilidade(usuarioObj, habilidade, indiceHabilidade);
+        cartasInimigoQueUsaramHabilidadeNesteTurno.Add(usuarioObj);
+        cartasInimigoColocadasNesteTurno.Add(invocada);
+
+        ReproduzirEfeitoVisualHabilidadeEspecial(usuarioObj, invocada, habilidade);
+        Notificar($"{cartaPrefab.nome} foi invocada pelo oponente.", 1.0f);
+
+        AtualizarListasDeCartas();
+        AtualizarHUDDuelistas();
+        return true;
+    }
+
+    private Carta EscolherCartaInvocacaoInimigo(HabilidadeCarta habilidade)
+    {
+        if (habilidade == null)
+            return null;
+
+        List<Carta> validas = habilidade.ObterCartasInvocaveisValidas();
+        if (validas.Count == 0)
+            return null;
+
+        if (habilidade.modoInvocacao == HabilidadeCarta.ModoInvocacao.Unica)
+            return validas[0];
+
+        if (habilidade.modoInvocacao == HabilidadeCarta.ModoInvocacao.Aleatoria)
+            return validas[Random.Range(0, validas.Count)];
+
+        // Quando a configuração é "EscolhaDoJogador", a IA escolhe a opção
+        // que parece mais forte para não depender de uma interface.
+        Carta melhor = validas[0];
+        int melhorPontuacao = int.MinValue;
+
+        for (int i = 0; i < validas.Count; i++)
+        {
+            Carta candidata = validas[i];
+            if (candidata == null)
+                continue;
+
+            int pontuacao = candidata.dano * 5 + candidata.vida * 3 + candidata.defesa * 2 + Random.Range(0, 6);
+            if (pontuacao > melhorPontuacao)
+            {
+                melhorPontuacao = pontuacao;
+                melhor = candidata;
+            }
+        }
+
+        return melhor;
     }
 
     private GameObject EscolherAlvoParaHabilidadeInimigo(GameObject cartaObj, HabilidadeCarta habilidade)
@@ -1931,12 +2188,197 @@ public class CombateAmigavel : MonoBehaviour
             case HabilidadeCarta.TipoHabilidade.Disfarce:
                 AplicarDisfarce(usuarioObj, alvoObj, usuario, alvo);
                 break;
+
+            case HabilidadeCarta.TipoHabilidade.Invocacao:
+                // Invocação possui fluxo próprio porque o alvo é um slot livre,
+                // e não uma carta já existente.
+                break;
         }
 
         AplicarEfeitosDaHabilidade(usuarioObj, alvoObj, habilidade);
 
         AtualizarListasDeCartas();
         AtualizarTextosDeRecursos();
+    }
+
+    private GameObject CriarCartaInvocada(Carta cartaPrefab, Transform slot, bool pertenceAoPlayer, HabilidadeCarta habilidade)
+    {
+        if (cartaPrefab == null || slot == null || habilidade == null || SlotJaPossuiCarta(slot))
+            return null;
+
+        GameObject obj = Instantiate(cartaPrefab.gameObject);
+        Vector3 escalaOriginal = obj.transform.localScale;
+
+        obj.transform.SetParent(slot);
+        obj.transform.position = slot.position;
+        obj.transform.localRotation = Quaternion.identity;
+        obj.transform.localScale = escalaOriginal;
+        obj.tag = pertenceAoPlayer ? tagCartaPlayer : tagCartaInimigo;
+
+        CartaInvocadaRuntime marcador = obj.GetComponent<CartaInvocadaRuntime>();
+        if (marcador == null)
+            marcador = obj.AddComponent<CartaInvocadaRuntime>();
+
+        marcador.Configurar(
+            pertenceAoPlayer,
+            habilidade.invocacaoPermanente,
+            Mathf.Max(1, habilidade.turnosInvocacao),
+            habilidade.nomeHabilidade
+        );
+
+        StartCoroutine(AnimarEntradaCartaInvocada(obj, escalaOriginal));
+        return obj;
+    }
+
+    private IEnumerator AnimarEntradaCartaInvocada(GameObject cartaObj, Vector3 escalaFinal)
+    {
+        if (cartaObj == null)
+            yield break;
+
+        SpriteRenderer sr = cartaObj.GetComponent<SpriteRenderer>();
+        Color corFinal = sr != null ? sr.color : Color.white;
+        if (sr != null)
+            sr.color = new Color(corFinal.r, corFinal.g, corFinal.b, 0f);
+
+        cartaObj.transform.localScale = escalaFinal * 0.20f;
+        float tempo = 0f;
+        const float duracao = 0.30f;
+
+        while (tempo < duracao && cartaObj != null)
+        {
+            tempo += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(tempo / duracao);
+            float suave = 1f - Mathf.Pow(1f - t, 3f);
+            float escala = Mathf.Lerp(0.20f, 1.08f, suave);
+
+            cartaObj.transform.localScale = escalaFinal * escala;
+            if (sr != null)
+                sr.color = new Color(corFinal.r, corFinal.g, corFinal.b, Mathf.Lerp(0f, corFinal.a, t));
+
+            yield return null;
+        }
+
+        if (cartaObj == null)
+            yield break;
+
+        tempo = 0f;
+        const float volta = 0.10f;
+        Vector3 inicio = escalaFinal * 1.08f;
+        while (tempo < volta && cartaObj != null)
+        {
+            tempo += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(tempo / volta);
+            cartaObj.transform.localScale = Vector3.Lerp(inicio, escalaFinal, t);
+            yield return null;
+        }
+
+        if (cartaObj != null)
+        {
+            cartaObj.transform.localScale = escalaFinal;
+            if (sr != null)
+                sr.color = corFinal;
+        }
+    }
+
+    private List<Transform> ObterSlotsLivres(string tagSlot)
+    {
+        List<Transform> resultado = new List<Transform>();
+        GameObject[] slots;
+
+        try
+        {
+            slots = GameObject.FindGameObjectsWithTag(tagSlot);
+        }
+        catch
+        {
+            return resultado;
+        }
+
+        if (slots == null)
+            return resultado;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] != null && !SlotJaPossuiCarta(slots[i].transform))
+                resultado.Add(slots[i].transform);
+        }
+
+        resultado.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+        return resultado;
+    }
+
+    private void ProcessarInvocacoesTemporariasNoInicioDoTurno(bool turnoDoPlayerIniciando)
+    {
+        AtualizarListasDeCartas();
+        List<GameObject> cartas = turnoDoPlayerIniciando ? cartasPlayerNoTabuleiro : cartasInimigoNoTabuleiro;
+        List<GameObject> copia = new List<GameObject>(cartas);
+
+        for (int i = copia.Count - 1; i >= 0; i--)
+        {
+            GameObject obj = copia[i];
+            if (obj == null)
+                continue;
+
+            CartaInvocadaRuntime marcador = obj.GetComponent<CartaInvocadaRuntime>();
+            if (marcador == null || marcador.permanente || marcador.pertenceAoPlayer != turnoDoPlayerIniciando)
+                continue;
+
+            if (marcador.ignorarPrimeiraChecagem)
+            {
+                marcador.ignorarPrimeiraChecagem = false;
+                continue;
+            }
+
+            marcador.turnosRestantes--;
+            if (marcador.turnosRestantes <= 0)
+                StartCoroutine(ExpirarInvocacao(obj));
+        }
+    }
+
+    private IEnumerator ExpirarInvocacao(GameObject cartaObj)
+    {
+        if (cartaObj == null)
+            yield break;
+
+        CartaInvocadaRuntime marcador = cartaObj.GetComponent<CartaInvocadaRuntime>();
+        if (marcador != null && marcador.expirando)
+            yield break;
+
+        if (marcador != null)
+            marcador.expirando = true;
+
+        Carta carta = cartaObj.GetComponent<Carta>();
+        if (feedbackCartasUI != null)
+            feedbackCartasUI.MostrarTextoFlutuante(cartaObj, "FIM DA INVOCAÇÃO", new Color(0.72f, 0.78f, 1f, 1f));
+
+        SpriteRenderer sr = cartaObj.GetComponent<SpriteRenderer>();
+        Color inicial = sr != null ? sr.color : Color.white;
+        Vector3 escalaInicial = cartaObj.transform.localScale;
+        float tempo = 0f;
+        const float duracao = 0.28f;
+
+        while (tempo < duracao && cartaObj != null)
+        {
+            tempo += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(tempo / duracao);
+            cartaObj.transform.localScale = escalaInicial * Mathf.Lerp(1f, 0.12f, t);
+
+            if (sr != null)
+                sr.color = new Color(inicial.r, inicial.g, inicial.b, Mathf.Lerp(inicial.a, 0f, t));
+
+            yield return null;
+        }
+
+        if (cartaObj != null)
+            Destroy(cartaObj);
+
+        yield return null;
+        AtualizarListasDeCartas();
+        AtualizarHUDDuelistas();
+        VerificarCondicoesDeFimDeCombate();
+
+        if (carta != null)
+            Debug.Log($"INVOCAÇÃO ENCERRADA -> {carta.nome} desapareceu do tabuleiro.");
     }
 
     private bool ValidarAlvoDaHabilidade(GameObject usuarioObj, GameObject alvoObj, HabilidadeCarta habilidade)
@@ -2302,6 +2744,10 @@ public class CombateAmigavel : MonoBehaviour
         if (cartaObj == null)
             return;
 
+        // Cartas invocadas existem diretamente no campo e não fazem parte do Deck original.
+        if (cartaObj.GetComponent<CartaInvocadaRuntime>() != null)
+            return;
+
         string tagDeck = cartaObj.CompareTag(tagCartaPlayer) ? tagSlotDeckPlayer : tagSlotDeckInimigo;
         Transform slotLivre = EncontrarSlotLivre(tagDeck);
 
@@ -2467,6 +2913,15 @@ public class CombateAmigavel : MonoBehaviour
             texto += "Efeito base: remove Sobrecarga, Fogo e Sangramento da carta aliada.\n";
         else if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Disfarce)
             texto += "Efeito base: copia o sprite da carta escolhida e evita dano de cartas oponentes até atacar.\n";
+        else if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Invocacao)
+        {
+            string modo = habilidade.modoInvocacao == HabilidadeCarta.ModoInvocacao.Unica ? "carta única" :
+                (habilidade.modoInvocacao == HabilidadeCarta.ModoInvocacao.EscolhaDoJogador ? "escolha do jogador" : "aleatória");
+            string duracao = habilidade.invocacaoPermanente
+                ? "permanece até ser derrotada"
+                : $"permanece por {Mathf.Max(1, habilidade.turnosInvocacao)} turno(s) do dono";
+            texto += $"Invocação: {modo}; {duracao}.\n";
+        }
 
         if (habilidade.efeitos != null && habilidade.efeitos.Count > 0)
         {
@@ -2491,6 +2946,24 @@ public class CombateAmigavel : MonoBehaviour
 
         if (!habilidade.EstaConfigurada() && !habilidade.EstaConfiguradaComoConjunto())
             return false;
+
+        if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Invocacao)
+        {
+            if (!habilidade.PossuiInvocacaoValida())
+            {
+                if (mostrarAviso)
+                    Notificar("INVOCAÇÃO • nenhuma carta configurada.", 1.1f);
+                return false;
+            }
+
+            string tagTabuleiro = cartaObj.CompareTag(tagCartaPlayer) ? tagSlotTabuleiroPlayer : tagSlotTabuleiroInimigo;
+            if (ObterSlotsLivres(tagTabuleiro).Count == 0)
+            {
+                if (mostrarAviso)
+                    Notificar("INVOCAÇÃO • tabuleiro sem espaço.", 1.1f);
+                return false;
+            }
+        }
 
         if (CartaEstaParalisada(cartaObj))
         {
@@ -3304,6 +3777,9 @@ public class CombateAmigavel : MonoBehaviour
         if (notificacaoJogoUI != null)
             notificacaoJogoUI.FecharConfirmacao();
 
+        if (selecaoInvocacaoUI != null)
+            selecaoInvocacaoUI.Fechar();
+
         StopAllCoroutines();
 
         if (hudDuelistasUI != null)
@@ -3406,6 +3882,7 @@ public class CombateAmigavel : MonoBehaviour
         // Cartas colocadas pelo player no turno anterior agora ficam prontas para agir.
         cartasPlayerColocadasNesteTurno.Clear();
 
+        ProcessarInvocacoesTemporariasNoInicioDoTurno(true);
         ProcessarBuffsTemporariosNoInicioDoTurno(true);
         ProcessarEfeitosNoInicioDoTurno(true);
         ProcessarCooldownsHabilidadesNoInicioDoTurno(true);
@@ -3765,6 +4242,8 @@ public class CombateAmigavel : MonoBehaviour
             return false;
         if (!cartaObj.CompareTag(tagCartaPlayer) || !EstaEmSlotComTag(cartaObj.transform, tagSlotTabuleiroPlayer))
             return false;
+        if (cartaObj.GetComponent<CartaInvocadaRuntime>() != null)
+            return false;
         return EncontrarSlotLivre(tagSlotDeckPlayer) != null;
     }
 
@@ -3880,6 +4359,7 @@ public class CombateAmigavel : MonoBehaviour
         cartasInimigoQueUsaramHabilidadeNesteTurno.Clear();
         ataquesPendentesDoPlayer.Clear();
 
+        ProcessarInvocacoesTemporariasNoInicioDoTurno(true);
         ProcessarBuffsTemporariosNoInicioDoTurno(true);
         ProcessarEfeitosNoInicioDoTurno(true);
 
