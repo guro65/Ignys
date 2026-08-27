@@ -336,6 +336,10 @@ public class Pacote : MonoBehaviour
     [Tooltip("Mantida porque InimigoBase usa SortearCartaSemCusto(). Se vazia, será usada a tabela Mediano.")]
     public List<ChanceRaridade> chancesPorRaridade = new List<ChanceRaridade>();
 
+    [Header("Apresentação automática da compra")]
+    [Tooltip("Quando ativo, a compra usa a imagem real do pacote, mostra o selo e envia visualmente o pacote para o inventário.")]
+    public bool usarAnimacaoDeCompra = true;
+
     public void ComprarPacote()
     {
         if (Orbs.instancia == null)
@@ -350,16 +354,44 @@ public class Pacote : MonoBehaviour
             return;
         }
 
+        // Enquanto a apresentação está ocupando a tela, evita compras duplicadas por clique repetido.
+        if (usarAnimacaoDeCompra && CompraPacoteUI.ExisteCompraEmAndamento())
+        {
+            Debug.Log("Aguarde a animação da compra atual terminar.");
+            return;
+        }
+
+        int orbsAntesDaCompra = Orbs.instancia.quantidade;
+
         if (!Orbs.instancia.GastarOrbs(precoPacote))
         {
             Debug.Log($"Orbs insuficientes para comprar o pacote {nomePacote}.");
+
+            if (usarAnimacaoDeCompra)
+                CompraPacoteUI.ObterOuCriar().MostrarFalhaCompra("ORBS INSUFICIENTES");
+
             return;
         }
+
+        int orbsDepoisDaCompra = Orbs.instancia.quantidade;
 
         PesoPacote pesoSorteado = SortearPesoPacote();
         PacoteAdquirido pacoteAdquirido = new PacoteAdquirido(this, pesoSorteado);
 
+        // O pacote é adicionado imediatamente. A animação é somente apresentação,
+        // então o jogador não perde a compra caso a cena seja interrompida.
         Inventario.instancia.AdicionarPacote(pacoteAdquirido);
+
+        if (usarAnimacaoDeCompra)
+        {
+            CompraPacoteUI sistemaCompra = CompraPacoteUI.ObterOuCriar();
+            sistemaCompra.IniciarCompra(
+                pacoteAdquirido,
+                precoPacote,
+                orbsAntesDaCompra,
+                orbsDepoisDaCompra
+            );
+        }
 
         // O peso não é mostrado ao jogador aqui de propósito.
         // Ele só descobre usando o botão Pesar no inventário.

@@ -10,11 +10,11 @@ public class AberturaPacoteUI : MonoBehaviour
     private static AberturaPacoteUI instancia;
 
     [Header("Velocidade da abertura")]
-    [Min(0.05f)] [SerializeField] private float duracaoEntradaPacote = 0.28f;
-    [Min(0.05f)] [SerializeField] private float duracaoRasgo = 0.24f;
-    [Min(0.05f)] [SerializeField] private float duracaoSepararMetades = 0.48f;
-    [Min(0.05f)] [SerializeField] private float duracaoEntradaCarta = 0.32f;
-    [Min(0.01f)] [SerializeField] private float duracaoSaidaCarta = 0.12f;
+    [Min(0.05f)][SerializeField] private float duracaoEntradaPacote = 0.28f;
+    [Min(0.05f)][SerializeField] private float duracaoRasgo = 0.24f;
+    [Min(0.05f)][SerializeField] private float duracaoSepararMetades = 0.48f;
+    [Min(0.05f)][SerializeField] private float duracaoEntradaCarta = 0.32f;
+    [Min(0.01f)][SerializeField] private float duracaoSaidaCarta = 0.12f;
 
     [Header("Cores gerais")]
     [SerializeField] private Color corFundo = new Color32(9, 12, 20, 250);
@@ -30,8 +30,8 @@ public class AberturaPacoteUI : MonoBehaviour
     [SerializeField] private Color corDeus = new Color32(255, 225, 95, 255);
 
     [Header("Quantidade máxima de efeitos")]
-    [Min(0)] [SerializeField] private int maximoParticulas = 40;
-    [Min(0)] [SerializeField] private int maximoRaios = 24;
+    [Min(0)][SerializeField] private int maximoParticulas = 40;
+    [Min(0)][SerializeField] private int maximoRaios = 24;
 
     private Canvas canvasAbertura;
     private RectTransform raizCanvas;
@@ -221,86 +221,97 @@ public class AberturaPacoteUI : MonoBehaviour
             ? ObterCorRaridade(melhorRaridade)
             : pacoteAtual.corSecundariaPacote;
 
+        Sprite spritePacoteReal = pacoteAtual != null ? pacoteAtual.imagemPacote : null;
+        bool possuiImagemReal = spritePacoteReal != null;
+
+        Vector2 tamanhoPacote = possuiImagemReal
+            ? CalcularTamanhoPacoteReal(spritePacoteReal, new Vector2(470f, 680f))
+            : new Vector2(470f, 680f);
+
         RectTransform pacoteRoot = CriarRetangulo(
-            "PacoteVisualGerado",
+            possuiImagemReal ? "PacoteImagemReal" : "PacoteVisualFallback",
             raizCanvas,
-            new Vector2(470f, 680f),
+            tamanhoPacote,
             Vector2.zero
         );
 
         pacoteRoot.localScale = Vector3.one * 0.65f;
 
-        RectTransform metadeSuperior = CriarImagem(
-            "MetadeSuperior",
-            pacoteRoot,
-            pacoteAtual.corPrincipalPacote,
-            new Vector2(470f, 340f),
-            new Vector2(0f, 170f)
-        );
-        CanvasGroup grupoSuperior = metadeSuperior.gameObject.AddComponent<CanvasGroup>();
+        RectTransform metadeSuperior;
+        RectTransform metadeInferior;
 
-        RectTransform metadeInferior = CriarImagem(
-            "MetadeInferior",
-            pacoteRoot,
-            Escurecer(pacoteAtual.corPrincipalPacote, 0.10f),
-            new Vector2(470f, 340f),
-            new Vector2(0f, -170f)
-        );
+        if (possuiImagemReal)
+        {
+            // A MESMA imagem real do pacote é duplicada e recortada em duas metades.
+            // Assim o pacote pode "rasgar" sem precisar de sprites extras.
+            metadeSuperior = CriarMetadePacoteReal(
+                "MetadeSuperior_ImagemReal",
+                pacoteRoot,
+                spritePacoteReal,
+                tamanhoPacote,
+                true
+            );
+
+            metadeInferior = CriarMetadePacoteReal(
+                "MetadeInferior_ImagemReal",
+                pacoteRoot,
+                spritePacoteReal,
+                tamanhoPacote,
+                false
+            );
+        }
+        else
+        {
+            // Fallback para pacotes antigos/sem imagem configurada.
+            // Se imagemPacote estiver preenchida no prefab, este trecho nunca aparece.
+            Debug.LogWarning(
+                $"O pacote {pacoteAtual?.nomePacote ?? "desconhecido"} não possui imagemPacote. " +
+                "A abertura usará um fallback simples."
+            );
+
+            float alturaMetade = tamanhoPacote.y * 0.5f;
+
+            metadeSuperior = CriarImagem(
+                "MetadeSuperior_Fallback",
+                pacoteRoot,
+                pacoteAtual != null ? pacoteAtual.corPrincipalPacote : new Color32(50, 58, 82, 255),
+                new Vector2(tamanhoPacote.x, alturaMetade),
+                new Vector2(0f, alturaMetade * 0.5f)
+            );
+
+            metadeInferior = CriarImagem(
+                "MetadeInferior_Fallback",
+                pacoteRoot,
+                pacoteAtual != null
+                    ? Escurecer(pacoteAtual.corPrincipalPacote, 0.10f)
+                    : new Color32(42, 48, 68, 255),
+                new Vector2(tamanhoPacote.x, alturaMetade),
+                new Vector2(0f, -alturaMetade * 0.5f)
+            );
+
+            TMP_Text nomeFallback = CriarTexto(
+                "NomePacoteFallback",
+                pacoteRoot,
+                string.IsNullOrWhiteSpace(pacoteAtual?.nomePacote)
+                    ? "PACOTE"
+                    : pacoteAtual.nomePacote.ToUpperInvariant(),
+                34f,
+                pacoteAtual != null ? pacoteAtual.corTextoPacote : Color.white,
+                new Vector2(tamanhoPacote.x * 0.82f, 150f),
+                Vector2.zero,
+                TextAlignmentOptions.Center
+            );
+
+            nomeFallback.enableAutoSizing = true;
+            nomeFallback.fontSizeMin = 16f;
+            nomeFallback.fontSizeMax = 34f;
+        }
+
+        CanvasGroup grupoSuperior = metadeSuperior.gameObject.AddComponent<CanvasGroup>();
         CanvasGroup grupoInferior = metadeInferior.gameObject.AddComponent<CanvasGroup>();
 
-        CriarBordaPacote(metadeSuperior, pacoteAtual.corSecundariaPacote);
-        CriarBordaPacote(metadeInferior, pacoteAtual.corSecundariaPacote);
-
-        CriarImagem(
-            "FaixaSuperior",
-            metadeSuperior,
-            pacoteAtual.corSecundariaPacote,
-            new Vector2(430f, 22f),
-            new Vector2(0f, 137f)
-        );
-
-        CriarImagem(
-            "FaixaInferior",
-            metadeInferior,
-            pacoteAtual.corSecundariaPacote,
-            new Vector2(430f, 22f),
-            new Vector2(0f, -137f)
-        );
-
-        TMP_Text nome = CriarTexto(
-            "NomePacote",
-            metadeSuperior,
-            string.IsNullOrWhiteSpace(pacoteAtual.nomePacote) ? "PACOTE" : pacoteAtual.nomePacote.ToUpperInvariant(),
-            38f,
-            pacoteAtual.corTextoPacote,
-            new Vector2(410f, 145f),
-            new Vector2(0f, -15f),
-            TextAlignmentOptions.Center
-        );
-        nome.enableAutoSizing = true;
-        nome.fontSizeMin = 19f;
-        nome.fontSizeMax = 38f;
-
-        CriarTexto(
-            "Quantidade",
-            metadeInferior,
-            "CARD PACK\n10 CARTAS",
-            31f,
-            pacoteAtual.corTextoPacote,
-            new Vector2(400f, 130f),
-            new Vector2(0f, 20f),
-            TextAlignmentOptions.Center
-        );
-
-        RectTransform simbolo = CriarImagem(
-            "SimboloCentral",
-            metadeInferior,
-            ComAlpha(pacoteAtual.corSecundariaPacote, 0.85f),
-            new Vector2(82f, 82f),
-            new Vector2(0f, 100f)
-        );
-        simbolo.localRotation = Quaternion.Euler(0f, 0f, 45f);
-
+        // A única sobreposição feita em cima da imagem real é a linha temporária do rasgo.
+        // O desenho, nome, logos e identidade do pacote continuam exatamente os do sprite original.
         RectTransform linhaRasgo = CriarImagem(
             "LinhaDoRasgo",
             pacoteRoot,
@@ -311,7 +322,12 @@ public class AberturaPacoteUI : MonoBehaviour
 
         textoInstrucao.text = "ABRINDO PACOTE...";
 
-        yield return AnimarEscala(pacoteRoot, Vector3.one * 0.65f, Vector3.one, duracaoEntradaPacote);
+        yield return AnimarEscala(
+            pacoteRoot,
+            Vector3.one * 0.65f,
+            Vector3.one,
+            duracaoEntradaPacote
+        );
 
         float duracaoTremor = 0.36f + (dramaticidade * 0.14f);
         float intensidadeTremor = 7f + (dramaticidade * 5f);
@@ -319,15 +335,22 @@ public class AberturaPacoteUI : MonoBehaviour
 
         if (dramaticidade >= 2)
         {
-            yield return PulsoEscala(pacoteRoot, 1f, 1.055f + dramaticidade * 0.006f, 0.18f);
+            yield return PulsoEscala(
+                pacoteRoot,
+                1f,
+                1.055f + dramaticidade * 0.006f,
+                0.18f
+            );
         }
 
         // Para aberturas muito raras, o rasgo começa, para e depois explode de vez.
         if (dramaticidade >= 3)
         {
-            yield return AnimarLargura(linhaRasgo, 0f, 180f, 0.12f);
+            float larguraPressagio = Mathf.Min(180f, tamanhoPacote.x * 0.42f);
+
+            yield return AnimarLargura(linhaRasgo, 0f, larguraPressagio, 0.12f);
             yield return PiscarTela(corPressagio, 0.28f, 0.11f);
-            yield return AnimarLargura(linhaRasgo, 180f, 0f, 0.08f);
+            yield return AnimarLargura(linhaRasgo, larguraPressagio, 0f, 0.08f);
             yield return new WaitForSecondsRealtime(0.16f);
             yield return Tremer(pacoteRoot, 0.36f, intensidadeTremor * 1.45f);
         }
@@ -338,11 +361,25 @@ public class AberturaPacoteUI : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.12f);
         }
 
-        yield return AnimarLargura(linhaRasgo, 0f, 510f, duracaoRasgo);
-        yield return PiscarTela(dramaticidade >= 3 ? corPressagio : Color.white, 0.72f, 0.14f);
+        yield return AnimarLargura(
+            linhaRasgo,
+            0f,
+            tamanhoPacote.x + 40f,
+            duracaoRasgo
+        );
+
+        yield return PiscarTela(
+            dramaticidade >= 3 ? corPressagio : Color.white,
+            0.72f,
+            0.14f
+        );
 
         Vector2 inicioSuperior = metadeSuperior.anchoredPosition;
         Vector2 inicioInferior = metadeInferior.anchoredPosition;
+
+        float deslocamentoHorizontal = Mathf.Max(45f, tamanhoPacote.x * 0.14f);
+        float deslocamentoVertical = Mathf.Max(390f, tamanhoPacote.y * 0.84f);
+
         float tempo = 0f;
 
         while (tempo < duracaoSepararMetades)
@@ -353,17 +390,27 @@ public class AberturaPacoteUI : MonoBehaviour
 
             metadeSuperior.anchoredPosition = Vector2.Lerp(
                 inicioSuperior,
-                inicioSuperior + new Vector2(-65f, 570f),
-                suave
-            );
-            metadeInferior.anchoredPosition = Vector2.Lerp(
-                inicioInferior,
-                inicioInferior + new Vector2(65f, -570f),
+                inicioSuperior + new Vector2(-deslocamentoHorizontal, deslocamentoVertical),
                 suave
             );
 
-            metadeSuperior.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(0f, -22f, suave));
-            metadeInferior.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(0f, 18f, suave));
+            metadeInferior.anchoredPosition = Vector2.Lerp(
+                inicioInferior,
+                inicioInferior + new Vector2(deslocamentoHorizontal, -deslocamentoVertical),
+                suave
+            );
+
+            metadeSuperior.localRotation = Quaternion.Euler(
+                0f,
+                0f,
+                Mathf.Lerp(0f, -22f, suave)
+            );
+
+            metadeInferior.localRotation = Quaternion.Euler(
+                0f,
+                0f,
+                Mathf.Lerp(0f, 18f, suave)
+            );
 
             grupoSuperior.alpha = 1f - Mathf.Clamp01((t - 0.45f) / 0.55f);
             grupoInferior.alpha = 1f - Mathf.Clamp01((t - 0.45f) / 0.55f);
@@ -372,6 +419,78 @@ public class AberturaPacoteUI : MonoBehaviour
         }
 
         Destroy(pacoteRoot.gameObject);
+    }
+
+    private Vector2 CalcularTamanhoPacoteReal(Sprite sprite, Vector2 tamanhoMaximo)
+    {
+        if (sprite == null)
+            return tamanhoMaximo;
+
+        float larguraSprite = sprite.rect.width;
+        float alturaSprite = sprite.rect.height;
+
+        if (larguraSprite <= 0f || alturaSprite <= 0f)
+            return tamanhoMaximo;
+
+        float escala = Mathf.Min(
+            tamanhoMaximo.x / larguraSprite,
+            tamanhoMaximo.y / alturaSprite
+        );
+
+        return new Vector2(
+            larguraSprite * escala,
+            alturaSprite * escala
+        );
+    }
+
+    private RectTransform CriarMetadePacoteReal(
+        string nome,
+        RectTransform parent,
+        Sprite sprite,
+        Vector2 tamanhoCompleto,
+        bool superior
+    )
+    {
+        float alturaMetade = tamanhoCompleto.y * 0.5f;
+        float posicaoMetadeY = superior
+            ? alturaMetade * 0.5f
+            : -alturaMetade * 0.5f;
+
+        GameObject mascaraObj = new GameObject(
+            nome,
+            typeof(RectTransform),
+            typeof(RectMask2D)
+        );
+
+        RectTransform mascaraRT = mascaraObj.GetComponent<RectTransform>();
+        mascaraRT.SetParent(parent, false);
+
+        ConfigurarCentro(
+            mascaraRT,
+            new Vector2(tamanhoCompleto.x, alturaMetade),
+            new Vector2(0f, posicaoMetadeY)
+        );
+
+        // A imagem inteira fica dentro da máscara, deslocada para manter
+        // exatamente o mesmo alinhamento visual nas duas metades.
+        RectTransform imagemRT = CriarImagem(
+            "ImagemRealDoPacote",
+            mascaraRT,
+            Color.white,
+            tamanhoCompleto,
+            new Vector2(
+                0f,
+                superior ? -alturaMetade * 0.5f : alturaMetade * 0.5f
+            )
+        );
+
+        Image imagem = imagemRT.GetComponent<Image>();
+        imagem.sprite = sprite;
+        imagem.color = Color.white;
+        imagem.preserveAspect = true;
+        imagem.raycastTarget = false;
+
+        return mascaraRT;
     }
 
     private IEnumerator RevelarCarta(Carta carta, int indice, int total)
