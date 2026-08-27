@@ -1,0 +1,21 @@
+EFEITO DE CORTE - UNITY
+
+Este pacote foi convertido do GIF enviado.
+- 6 frames
+- 80 ms por frame (0,08 s)
+- 256x256 por frame
+- fundo transparente
+
+Forma mais simples com os scripts modificados:
+1. Importe corte_01.png ate corte_06.png para o Unity.
+2. Em cada imagem, use Texture Type = Sprite (2D and UI), Filter Mode = Point e Compression = None.
+3. Na carta, no componente Carta, abra "Efeito visual do ataque".
+4. Defina Frames Efeito Ataque como tamanho 6.
+5. Arraste corte_01, corte_02, ... corte_06 na ordem.
+6. Deixe Tempo Entre Frames Efeito Ataque = 0.08.
+7. Ajuste Escala Efeito Ataque ate caber sobre a carta.
+
+Se quiser usar o mesmo corte como efeito padrao para todas as cartas:
+- Em CombateAmigavel, preencha Frames Efeito Ataque Padrao com os 6 frames.
+- Cartas que tiverem Frames Efeito Ataque vazios usarao automaticamente o padrao.
+- Cartas com frames proprios substituem o padrao, permitindo espada, fogo, soco etc.

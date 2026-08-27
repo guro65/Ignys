@@ -123,6 +123,13 @@ MonoBehaviour:
   danoSangramentoPorTurno: 0
   disfarceAtivo: 0
   spriteOriginalAntesDoDisfarce: {fileID: 0}
+  framesEfeitoAtaque: []
+  tempoEntreFramesEfeitoAtaque: 0.08
+  deslocamentoEfeitoAtaque: {x: 0, y: 0}
+  escalaEfeitoAtaque: {x: 1, y: 1}
+  rotacaoEfeitoAtaque: 0
+  inverterEfeitoAtaqueHorizontal: 0
+  inverterEfeitoAtaqueVertical: 0
 --- !u!61 &1287171448032431448
 BoxCollider2D:
   m_ObjectHideFlags: 0

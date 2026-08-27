@@ -12,7 +12,7 @@ public class EfeitoHabilidade
     [Header("Chance do efeito")]
     [Range(0f, 100f)] public float chanceAplicar = 100f;
 
-    [Header("Duração do efeito")]
+    [Header("Dura??o do efeito")]
     [Min(1)] public int duracaoTurnos = 1;
 
     [Header("Dano por turno")]
@@ -26,7 +26,7 @@ public class HabilidadeCarta
     public enum TipoBuff { Nenhum, Vida, Dano, Defesa }
     public enum AlvoHabilidade { Nenhum, PropriaCarta, CartaAliada, CartaInimiga }
 
-    [Header("Identificação")]
+    [Header("Identifica??o")]
     public string nomeHabilidade;
     [TextArea] public string descricaoHabilidade;
 
@@ -39,7 +39,7 @@ public class HabilidadeCarta
     [Header("Efeitos extras que essa habilidade pode aplicar")]
     public List<EfeitoHabilidade> efeitos = new List<EfeitoHabilidade>();
 
-    [Header("Duração para defesa/buff")]
+    [Header("Dura??o para defesa/buff")]
     [Min(1)] public int duracaoHabilidadeTurnos = 1;
 
     [Header("Cooldown das habilidades comuns")]
@@ -49,23 +49,45 @@ public class HabilidadeCarta
     [Header("Habilidade especial")]
     public bool habilidadeEspecial = false;
 
-    [Header("Ativação especial por sacrifício")]
+    [Header("Efeito visual da habilidade especial")]
+    [Tooltip("Se esta habilidade for especial e esta lista possuir sprites, este efeito sera reproduzido sobre o alvo quando a habilidade for usada.")]
+    public Sprite[] framesEfeitoHabilidadeEspecial = new Sprite[0];
+
+    [Tooltip("Tempo em segundos que cada frame do efeito visual desta habilidade especial fica visivel.")]
+    [Min(0.01f)] public float tempoEntreFramesEfeitoHabilidadeEspecial = 0.08f;
+
+    [Tooltip("Deslocamento do efeito em relacao ao centro da carta alvo da habilidade.")]
+    public Vector2 deslocamentoEfeitoHabilidadeEspecial = Vector2.zero;
+
+    [Tooltip("Escala visual do efeito desta habilidade especial.")]
+    public Vector2 escalaEfeitoHabilidadeEspecial = Vector2.one;
+
+    [Tooltip("Rotacao em graus do efeito desta habilidade especial.")]
+    public float rotacaoEfeitoHabilidadeEspecial = 0f;
+
+    [Tooltip("Inverte horizontalmente o efeito desta habilidade especial.")]
+    public bool inverterEfeitoHabilidadeEspecialHorizontal = false;
+
+    [Tooltip("Inverte verticalmente o efeito desta habilidade especial.")]
+    public bool inverterEfeitoHabilidadeEspecialVertical = false;
+
+    [Header("Ativa??o especial por sacrif?cio")]
     public bool exigirSacrificioCartas = false;
     [Min(0)] public int quantidadeCartasParaSacrificar = 0;
 
-    [Header("Ativação especial por dano total")]
+    [Header("Ativa??o especial por dano total")]
     public bool exigirDanoTotalCausado = false;
     [Min(0)] public int danoTotalNecessario = 0;
 
-    [Header("Ativação especial por vida")]
+    [Header("Ativa??o especial por vida")]
     public bool exigirVidaMenorOuIgual = false;
     [Min(0)] public int vidaNecessariaMenorOuIgual = 0;
 
-    [Header("Ativação especial por cooldown")]
+    [Header("Ativa??o especial por cooldown")]
     public bool usarCooldownEspecial = false;
     [Min(0)] public int cooldownEspecialTurnos = 0;
 
-    [Header("Ativação em conjunto")]
+    [Header("Ativa??o em conjunto")]
     public bool ativacaoEmConjunto = false;
     public Carta cartaNecessariaNoTabuleiro;
     public string nomeBotaoConjunto = "Habilidade em Conjunto";
@@ -133,7 +155,7 @@ public class Carta : MonoBehaviour
     public enum Raridade { Comum, Epico, Mitico, Prodigio, Celeste, Scarlet, Deus }
     public enum Estrela { UmaEstrela = 1, DuasEstrelas = 2, TresEstrelas = 3 }
 
-    [Header("Estatísticas da Carta")]
+    [Header("Estat?sticas da Carta")]
     public string nome;
 
     [Header("Estrelas da Carta")]
@@ -163,6 +185,28 @@ public class Carta : MonoBehaviour
     [Header("Disfarce")]
     public bool disfarceAtivo = false;
     public Sprite spriteOriginalAntesDoDisfarce;
+
+    [Header("Efeito visual do ataque")]
+    [Tooltip("Se esta lista possuir sprites, a carta usara este efeito ao acertar um ataque. Se estiver vazia, sera usado o efeito padrao definido no CombateAmigavel.")]
+    public Sprite[] framesEfeitoAtaque = new Sprite[0];
+
+    [Tooltip("Tempo em segundos que cada frame do efeito de ataque fica visivel.")]
+    [Min(0.01f)] public float tempoEntreFramesEfeitoAtaque = 0.08f;
+
+    [Tooltip("Deslocamento do efeito em relacao ao centro da carta atingida.")]
+    public Vector2 deslocamentoEfeitoAtaque = Vector2.zero;
+
+    [Tooltip("Escala visual do efeito de ataque.")]
+    public Vector2 escalaEfeitoAtaque = Vector2.one;
+
+    [Tooltip("Rotacao em graus do efeito de ataque.")]
+    public float rotacaoEfeitoAtaque = 0f;
+
+    [Tooltip("Inverte o efeito horizontalmente.")]
+    public bool inverterEfeitoAtaqueHorizontal = false;
+
+    [Tooltip("Inverte o efeito verticalmente.")]
+    public bool inverterEfeitoAtaqueVertical = false;
 
     public void DefinirEstatisticas(string _nome, int _dano, int _vida, int _defesa, Raridade _raridade)
     {

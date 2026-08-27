@@ -106,6 +106,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Carta
   nome: Basic
+  estrelas: 1
   dano: 12
   vida: 38
   defesa: 3
@@ -123,6 +124,13 @@ MonoBehaviour:
     usarCooldown: 1
     cooldownTurnos: 10
     habilidadeEspecial: 0
+    framesEfeitoHabilidadeEspecial: []
+    tempoEntreFramesEfeitoHabilidadeEspecial: 0.08
+    deslocamentoEfeitoHabilidadeEspecial: {x: 0, y: 0}
+    escalaEfeitoHabilidadeEspecial: {x: 1, y: 1}
+    rotacaoEfeitoHabilidadeEspecial: 0
+    inverterEfeitoHabilidadeEspecialHorizontal: 0
+    inverterEfeitoHabilidadeEspecialVertical: 0
     exigirSacrificioCartas: 0
     quantidadeCartasParaSacrificar: 0
     exigirDanoTotalCausado: 0
@@ -144,6 +152,13 @@ MonoBehaviour:
   danoSangramentoPorTurno: 0
   disfarceAtivo: 0
   spriteOriginalAntesDoDisfarce: {fileID: 0}
+  framesEfeitoAtaque: []
+  tempoEntreFramesEfeitoAtaque: 0.08
+  deslocamentoEfeitoAtaque: {x: 0, y: 0}
+  escalaEfeitoAtaque: {x: 1, y: 1}
+  rotacaoEfeitoAtaque: 0
+  inverterEfeitoAtaqueHorizontal: 0
+  inverterEfeitoAtaqueVertical: 0
 --- !u!61 &5490965958947073812
 BoxCollider2D:
   m_ObjectHideFlags: 0

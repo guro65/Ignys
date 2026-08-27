@@ -6,7 +6,7 @@ using TMPro;
 
 public class CombateAmigavel : MonoBehaviour
 {
-    [Header("Referências")]
+    [Header("Refer?ncias")]
     public ControladorInimigoNaCena controladorInimigoNaCena;
     public UICombateCarta uiCombateCarta;
 
@@ -20,7 +20,7 @@ public class CombateAmigavel : MonoBehaviour
     public string tagSlotDeckInimigo = "SlotDackInimigo";
     public string tagSlotTabuleiroInimigo = "SlotTabuleiroInimigo";
 
-    [Header("Tag do Cemitério")]
+    [Header("Tag do Cemit?rio")]
     public string tagSlotCemiterio = "SlotCemiterio";
 
     [Header("Estado das cartas do Player")]
@@ -69,6 +69,25 @@ public class CombateAmigavel : MonoBehaviour
 
     [Header("Ajustes da IA")]
     public float tempoEntreAcoesInimigo = 0.5f;
+
+    [Header("Efeito visual de ataque padrao")]
+    [Tooltip("Frames usados quando a carta atacante nao possui um efeito personalizado configurado no componente Carta.")]
+    public Sprite[] framesEfeitoAtaquePadrao = new Sprite[0];
+
+    [Tooltip("Tempo em segundos que cada frame do efeito padrao fica visivel.")]
+    [Min(0.01f)] public float tempoEntreFramesEfeitoAtaquePadrao = 0.08f;
+
+    [Tooltip("Deslocamento do efeito padrao em relacao ao centro da carta atingida.")]
+    public Vector2 deslocamentoEfeitoAtaquePadrao = Vector2.zero;
+
+    [Tooltip("Escala visual do efeito padrao.")]
+    public Vector2 escalaEfeitoAtaquePadrao = Vector2.one;
+
+    [Tooltip("Rotacao em graus do efeito padrao.")]
+    public float rotacaoEfeitoAtaquePadrao = 0f;
+
+    [Tooltip("Quantas ordens acima da carta atingida o efeito sera desenhado.")]
+    public int ordemRenderizacaoAcimaDaCarta = 20;
 
     private GameObject cartaSendoArrastada;
     private Vector3 posicaoOriginalCarta;
@@ -229,7 +248,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (CartaEstaParalisada(objetoClicado))
         {
-            Debug.Log("Essa carta está com Sobrecarga e não pode ser usada agora.");
+            Debug.Log("Essa carta est? com Sobrecarga e n?o pode ser usada agora.");
             return;
         }
 
@@ -364,7 +383,7 @@ public class CombateAmigavel : MonoBehaviour
     {
         if (!turnoDoPlayer)
         {
-            Debug.Log("Só pode resgatar carta no turno do player.");
+            Debug.Log("S? pode resgatar carta no turno do player.");
             return;
         }
 
@@ -377,13 +396,13 @@ public class CombateAmigavel : MonoBehaviour
         Transform slotLivre = EncontrarSlotLivre(tagSlotDeckPlayer);
         if (slotLivre == null)
         {
-            Debug.Log("Player não possui slot livre no deck para resgatar carta.");
+            Debug.Log("Player n?o possui slot livre no deck para resgatar carta.");
             return;
         }
 
         if (Inventario.instancia == null || Inventario.instancia.cartasObtidas.Count == 0)
         {
-            Debug.LogWarning("Inventário do player vazio.");
+            Debug.LogWarning("Invent?rio do player vazio.");
             return;
         }
 
@@ -495,13 +514,13 @@ public class CombateAmigavel : MonoBehaviour
 
         if (CartaEstaParalisada(atacante))
         {
-            Debug.Log("Essa carta está com Sobrecarga e não pode atacar.");
+            Debug.Log("Essa carta est? com Sobrecarga e n?o pode atacar.");
             return;
         }
 
         if (cartasPlayerQueAtacaramNesteTurno.Contains(atacante))
         {
-            Debug.Log("Essa carta do player já atacou neste turno.");
+            Debug.Log("Essa carta do player j? atacou neste turno.");
             return;
         }
 
@@ -530,7 +549,7 @@ public class CombateAmigavel : MonoBehaviour
 
             if (JaExisteAtaquePendente(cartaPlayerSelecionadaParaAtacar))
             {
-                Debug.Log("Essa carta do player já possui um ataque pendente.");
+                Debug.Log("Essa carta do player j? possui um ataque pendente.");
                 return;
             }
 
@@ -693,7 +712,7 @@ public class CombateAmigavel : MonoBehaviour
         Carta carta = cartaObj.GetComponent<Carta>();
         if (carta == null || !carta.TemHabilidadeValida())
         {
-            Debug.Log("Essa carta não possui habilidade válida configurada.");
+            Debug.Log("Essa carta n?o possui habilidade v?lida configurada.");
             return;
         }
 
@@ -717,7 +736,7 @@ public class CombateAmigavel : MonoBehaviour
         HabilidadeCarta habilidade = carta.ObterHabilidade(indiceHabilidade);
         if (habilidade == null)
         {
-            Debug.Log("Habilidade inválida ou não configurada.");
+            Debug.Log("Habilidade inv?lida ou n?o configurada.");
             return;
         }
 
@@ -741,7 +760,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (cartasPlayerQueUsaramHabilidadeNesteTurno.Contains(cartaObj))
         {
-            Debug.Log("Essa carta do player já usou habilidade neste turno.");
+            Debug.Log("Essa carta do player j? usou habilidade neste turno.");
             return;
         }
 
@@ -1308,17 +1327,21 @@ public class CombateAmigavel : MonoBehaviour
 
         if (!habilidade.EstaConfigurada())
         {
-            Debug.Log($"A habilidade {habilidade.nomeHabilidade} não está configurada corretamente.");
+            Debug.Log($"A habilidade {habilidade.nomeHabilidade} n?o est? configurada corretamente.");
             return;
         }
 
         if (!ValidarAlvoDaHabilidade(usuarioObj, alvoObj, habilidade))
         {
-            Debug.LogWarning($"Alvo inválido para a habilidade {habilidade.nomeHabilidade} de {usuario.nome}.");
+            Debug.LogWarning($"Alvo inv?lido para a habilidade {habilidade.nomeHabilidade} de {usuario.nome}.");
             return;
         }
 
         int valor = Mathf.Max(0, habilidade.valorHabilidade);
+
+        // Cada habilidade especial pode possuir seu proprio efeito visual.
+        // O efeito aparece sobre o alvo definido pela propria habilidade.
+        ReproduzirEfeitoVisualHabilidadeEspecial(usuarioObj, alvoObj, habilidade);
 
         switch (habilidade.tipoHabilidade)
         {
@@ -1385,7 +1408,7 @@ public class CombateAmigavel : MonoBehaviour
     {
         if (DisfarceProtegeContraAtacante(alvoObj, usuarioObj))
         {
-            Debug.Log($"HABILIDADE BLOQUEADA PELO DISFARCE -> {alvo.nome} não recebeu dano de {usuario.nome}.");
+            Debug.Log($"HABILIDADE BLOQUEADA PELO DISFARCE -> {alvo.nome} n?o recebeu dano de {usuario.nome}.");
             return;
         }
 
@@ -1399,7 +1422,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (alvo.vida <= 0)
         {
-            Debug.Log($"{alvo.nome} foi derrotada pela habilidade e enviada ao cemitério.");
+            Debug.Log($"{alvo.nome} foi derrotada pela habilidade e enviada ao cemit?rio.");
             MoverCartaParaCemiterio(alvoObj);
         }
     }
@@ -1408,7 +1431,7 @@ public class CombateAmigavel : MonoBehaviour
     {
         if (habilidade.tipoBuff == HabilidadeCarta.TipoBuff.Nenhum)
         {
-            Debug.LogWarning($"A habilidade de buff {habilidade.nomeHabilidade} de {usuario.nome} não possui tipo de buff válido.");
+            Debug.LogWarning($"A habilidade de buff {habilidade.nomeHabilidade} de {usuario.nome} n?o possui tipo de buff v?lido.");
             return;
         }
 
@@ -1429,21 +1452,21 @@ public class CombateAmigavel : MonoBehaviour
         if (tipoBuff == HabilidadeCarta.TipoBuff.Vida)
         {
             alvo.vida += valorFinal;
-            Debug.Log($"HABILIDADE TEMPORÁRIA -> {usuario.nome} aumentou a vida de {alvo.nome} em {valorFinal} por {duracao} turno(s). Vida atual: {alvo.vida}");
+            Debug.Log($"HABILIDADE TEMPOR?RIA -> {usuario.nome} aumentou a vida de {alvo.nome} em {valorFinal} por {duracao} turno(s). Vida atual: {alvo.vida}");
         }
         else if (tipoBuff == HabilidadeCarta.TipoBuff.Dano)
         {
             alvo.dano += valorFinal;
-            Debug.Log($"HABILIDADE TEMPORÁRIA -> {usuario.nome} aumentou o dano de {alvo.nome} em {valorFinal} por {duracao} turno(s). Dano atual: {alvo.dano}");
+            Debug.Log($"HABILIDADE TEMPOR?RIA -> {usuario.nome} aumentou o dano de {alvo.nome} em {valorFinal} por {duracao} turno(s). Dano atual: {alvo.dano}");
         }
         else if (tipoBuff == HabilidadeCarta.TipoBuff.Defesa)
         {
             alvo.defesa += valorFinal;
-            Debug.Log($"HABILIDADE TEMPORÁRIA -> {usuario.nome} aumentou a defesa de {alvo.nome} em {valorFinal} por {duracao} turno(s). Defesa atual: {alvo.defesa}");
+            Debug.Log($"HABILIDADE TEMPOR?RIA -> {usuario.nome} aumentou a defesa de {alvo.nome} em {valorFinal} por {duracao} turno(s). Defesa atual: {alvo.defesa}");
         }
         else
         {
-            Debug.LogWarning($"Tipo de buff inválido na habilidade de {usuario.nome}.");
+            Debug.LogWarning($"Tipo de buff inv?lido na habilidade de {usuario.nome}.");
             return;
         }
 
@@ -1491,7 +1514,7 @@ public class CombateAmigavel : MonoBehaviour
             return;
         }
 
-        Debug.Log("Nenhuma habilidade em conjunto disponível para essa carta agora.");
+        Debug.Log("Nenhuma habilidade em conjunto dispon?vel para essa carta agora.");
     }
 
     public bool CartaPossuiHabilidadeConjuntoDisponivel(GameObject cartaObj)
@@ -1580,7 +1603,7 @@ public class CombateAmigavel : MonoBehaviour
         atacante.disfarceAtivo = false;
         atacante.spriteOriginalAntesDoDisfarce = null;
 
-        Debug.Log($"DISFARCE ENCERRADO -> {atacante.nome} atacou e voltou para a aparência original.");
+        Debug.Log($"DISFARCE ENCERRADO -> {atacante.nome} atacou e voltou para a apar?ncia original.");
     }
 
     private void AplicarDisfarce(GameObject usuarioObj, GameObject alvoObj, Carta usuario, Carta alvo)
@@ -1593,7 +1616,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (spriteUsuario == null || spriteAlvo == null || spriteAlvo.sprite == null)
         {
-            Debug.LogWarning("Não foi possível aplicar Disfarce porque uma das cartas não possui SpriteRenderer ou sprite.");
+            Debug.LogWarning("N?o foi poss?vel aplicar Disfarce porque uma das cartas n?o possui SpriteRenderer ou sprite.");
             return;
         }
 
@@ -1603,7 +1626,7 @@ public class CombateAmigavel : MonoBehaviour
         spriteUsuario.sprite = spriteAlvo.sprite;
         usuario.disfarceAtivo = true;
 
-        Debug.Log($"DISFARCE -> {usuario.nome} copiou a aparência de {alvo.nome}. Enquanto não atacar, não poderá receber dano de cartas oponentes.");
+        Debug.Log($"DISFARCE -> {usuario.nome} copiou a apar?ncia de {alvo.nome}. Enquanto n?o atacar, n?o poder? receber dano de cartas oponentes.");
     }
 
     private void AnularEfeitosNegativos(GameObject alvoObj, Carta usuario, Carta alvo)
@@ -1622,7 +1645,7 @@ public class CombateAmigavel : MonoBehaviour
         alvo.turnosSangramentoRestantes = 0;
         alvo.danoSangramentoPorTurno = 0;
 
-        Debug.Log($"ANULAÇÃO -> {usuario.nome} removeu efeitos negativos de {alvo.nome}.");
+        Debug.Log($"ANULA??O -> {usuario.nome} removeu efeitos negativos de {alvo.nome}.");
     }
 
     private void AplicarEfeitosDaHabilidade(GameObject usuarioObj, GameObject alvoObj, HabilidadeCarta habilidade)
@@ -1645,7 +1668,7 @@ public class CombateAmigavel : MonoBehaviour
             float rolagem = Random.Range(0f, 100f);
             if (rolagem > efeito.chanceAplicar)
             {
-                Debug.Log($"EFEITO FALHOU -> {efeito.tipoEfeito} não foi aplicado em {alvo.nome}. Chance: {efeito.chanceAplicar}% | Rolagem: {rolagem:F1}");
+                Debug.Log($"EFEITO FALHOU -> {efeito.tipoEfeito} n?o foi aplicado em {alvo.nome}. Chance: {efeito.chanceAplicar}% | Rolagem: {rolagem:F1}");
                 continue;
             }
 
@@ -1661,14 +1684,14 @@ public class CombateAmigavel : MonoBehaviour
                 alvo.efeitoFogoAtivo = true;
                 alvo.turnosFogoRestantes = Mathf.Max(1, efeito.duracaoTurnos);
                 alvo.danoFogoPorTurno = Mathf.Max(0, efeito.danoPorTurno);
-                Debug.Log($"FOGO -> {alvo.nome} está pegando fogo por {alvo.turnosFogoRestantes} turno(s). Dano por turno: {alvo.danoFogoPorTurno}.");
+                Debug.Log($"FOGO -> {alvo.nome} est? pegando fogo por {alvo.turnosFogoRestantes} turno(s). Dano por turno: {alvo.danoFogoPorTurno}.");
             }
             else if (efeito.tipoEfeito == EfeitoHabilidade.TipoEfeito.Sangramento)
             {
                 alvo.efeitoSangramentoAtivo = true;
                 alvo.turnosSangramentoRestantes = Mathf.Max(1, efeito.duracaoTurnos);
                 alvo.danoSangramentoPorTurno = Mathf.Max(0, efeito.danoPorTurno);
-                Debug.Log($"SANGRAMENTO -> {alvo.nome} está sangrando por {alvo.turnosSangramentoRestantes} turno(s). Dano por turno: {alvo.danoSangramentoPorTurno}.");
+                Debug.Log($"SANGRAMENTO -> {alvo.nome} est? sangrando por {alvo.turnosSangramentoRestantes} turno(s). Dano por turno: {alvo.danoSangramentoPorTurno}.");
             }
         }
     }
@@ -1683,7 +1706,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (slotLivre == null)
         {
-            Debug.LogWarning($"Não há slot livre no deck para mover {cartaObj.name} por efeito.");
+            Debug.LogWarning($"N?o h? slot livre no deck para mover {cartaObj.name} por efeito.");
             return;
         }
 
@@ -1756,7 +1779,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (carta.vida <= 0)
         {
-            Debug.Log($"{carta.nome} foi derrotada por {nomeEfeito} e enviada ao cemitério.");
+            Debug.Log($"{carta.nome} foi derrotada por {nomeEfeito} e enviada ao cemit?rio.");
             MoverCartaParaCemiterio(cartaObj);
         }
     }
@@ -1788,7 +1811,7 @@ public class CombateAmigavel : MonoBehaviour
     private string ObterTextoEstadoHabilidade(GameObject cartaObj, HabilidadeCarta habilidade, int indiceHabilidade)
     {
         if (cartaObj == null || habilidade == null)
-            return "Habilidade inválida.";
+            return "Habilidade inv?lida.";
 
         string texto = "";
 
@@ -1797,16 +1820,16 @@ public class CombateAmigavel : MonoBehaviour
             texto += "Habilidade especial\n";
 
             if (habilidade.exigirSacrificioCartas)
-                texto += $"Condição/Custo: sacrificar {habilidade.quantidadeCartasParaSacrificar} carta(s) aliada(s).\n";
+                texto += $"Condi??o/Custo: sacrificar {habilidade.quantidadeCartasParaSacrificar} carta(s) aliada(s).\n";
 
             if (habilidade.exigirDanoTotalCausado)
-                texto += $"Condição: causar {habilidade.danoTotalNecessario} de dano total. Atual: {ObterDanoTotalCausado(cartaObj)}.\n";
+                texto += $"Condi??o: causar {habilidade.danoTotalNecessario} de dano total. Atual: {ObterDanoTotalCausado(cartaObj)}.\n";
 
             if (habilidade.exigirVidaMenorOuIgual)
             {
                 Carta carta = cartaObj.GetComponent<Carta>();
                 int vidaAtual = carta != null ? carta.vida : 0;
-                texto += $"Condição: vida menor ou igual a {habilidade.vidaNecessariaMenorOuIgual}. Atual: {vidaAtual}.\n";
+                texto += $"Condi??o: vida menor ou igual a {habilidade.vidaNecessariaMenorOuIgual}. Atual: {vidaAtual}.\n";
             }
 
             if (habilidade.usarCooldownEspecial)
@@ -1817,7 +1840,7 @@ public class CombateAmigavel : MonoBehaviour
 
             if (habilidade.ativacaoEmConjunto)
             {
-                string nomeCarta = habilidade.cartaNecessariaNoTabuleiro != null ? habilidade.cartaNecessariaNoTabuleiro.nome : "não definida";
+                string nomeCarta = habilidade.cartaNecessariaNoTabuleiro != null ? habilidade.cartaNecessariaNoTabuleiro.nome : "n?o definida";
                 texto += $"Conjunto: precisa da carta {nomeCarta} no tabuleiro aliado.\n";
             }
         }
@@ -1836,7 +1859,7 @@ public class CombateAmigavel : MonoBehaviour
         else if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Anulacao)
             texto += "Efeito base: remove Sobrecarga, Fogo e Sangramento da carta aliada.\n";
         else if (habilidade.tipoHabilidade == HabilidadeCarta.TipoHabilidade.Disfarce)
-            texto += "Efeito base: copia o sprite da carta escolhida e evita dano de cartas oponentes até atacar.\n";
+            texto += "Efeito base: copia o sprite da carta escolhida e evita dano de cartas oponentes at? atacar.\n";
 
         if (habilidade.efeitos != null && habilidade.efeitos.Count > 0)
         {
@@ -1847,7 +1870,7 @@ public class CombateAmigavel : MonoBehaviour
                 if (efeito == null)
                     continue;
 
-                texto += $"- {efeito.tipoEfeito} | Chance: {efeito.chanceAplicar}% | Duração: {efeito.duracaoTurnos} turno(s) | Dano/turno: {efeito.danoPorTurno}\n";
+                texto += $"- {efeito.tipoEfeito} | Chance: {efeito.chanceAplicar}% | Dura??o: {efeito.duracaoTurnos} turno(s) | Dano/turno: {efeito.danoPorTurno}\n";
             }
         }
 
@@ -1865,7 +1888,7 @@ public class CombateAmigavel : MonoBehaviour
         if (CartaEstaParalisada(cartaObj))
         {
             if (mostrarAviso)
-                Debug.Log("Essa carta está com Sobrecarga e não pode usar habilidade agora.");
+                Debug.Log("Essa carta est? com Sobrecarga e n?o pode usar habilidade agora.");
 
             return false;
         }
@@ -1875,7 +1898,7 @@ public class CombateAmigavel : MonoBehaviour
         if (!habilidade.habilidadeEspecial && habilidade.usarCooldown && cooldownAtual > 0)
         {
             if (mostrarAviso)
-                Debug.Log($"A habilidade {habilidade.nomeHabilidade} ainda está em cooldown por {cooldownAtual} turno(s).");
+                Debug.Log($"A habilidade {habilidade.nomeHabilidade} ainda est? em cooldown por {cooldownAtual} turno(s).");
 
             return false;
         }
@@ -1883,7 +1906,7 @@ public class CombateAmigavel : MonoBehaviour
         if (habilidade.habilidadeEspecial && habilidade.usarCooldownEspecial && cooldownAtual > 0)
         {
             if (mostrarAviso)
-                Debug.Log($"A habilidade especial {habilidade.nomeHabilidade} ainda está em cooldown por {cooldownAtual} turno(s).");
+                Debug.Log($"A habilidade especial {habilidade.nomeHabilidade} ainda est? em cooldown por {cooldownAtual} turno(s).");
 
             return false;
         }
@@ -1908,7 +1931,7 @@ public class CombateAmigavel : MonoBehaviour
             bool pode = cartasDisponiveis >= habilidade.quantidadeCartasParaSacrificar;
 
             if (!pode && mostrarAviso)
-                Debug.Log($"Não há cartas aliadas suficientes para sacrificar. Necessário: {habilidade.quantidadeCartasParaSacrificar} | Disponível: {cartasDisponiveis}");
+                Debug.Log($"N?o h? cartas aliadas suficientes para sacrificar. Necess?rio: {habilidade.quantidadeCartasParaSacrificar} | Dispon?vel: {cartasDisponiveis}");
 
             if (!pode)
                 return false;
@@ -1920,7 +1943,7 @@ public class CombateAmigavel : MonoBehaviour
             bool pode = danoAtual >= habilidade.danoTotalNecessario;
 
             if (!pode && mostrarAviso)
-                Debug.Log($"Dano total insuficiente para usar {habilidade.nomeHabilidade}. Necessário: {habilidade.danoTotalNecessario} | Atual: {danoAtual}");
+                Debug.Log($"Dano total insuficiente para usar {habilidade.nomeHabilidade}. Necess?rio: {habilidade.danoTotalNecessario} | Atual: {danoAtual}");
 
             if (!pode)
                 return false;
@@ -1932,7 +1955,7 @@ public class CombateAmigavel : MonoBehaviour
             bool pode = carta != null && carta.vida <= habilidade.vidaNecessariaMenorOuIgual;
 
             if (!pode && mostrarAviso)
-                Debug.Log($"A vida da carta ainda não está baixa o suficiente para usar {habilidade.nomeHabilidade}.");
+                Debug.Log($"A vida da carta ainda n?o est? baixa o suficiente para usar {habilidade.nomeHabilidade}.");
 
             if (!pode)
                 return false;
@@ -2144,7 +2167,7 @@ public class CombateAmigavel : MonoBehaviour
                 buff.carta.defesa = 0;
         }
 
-        Debug.Log($"BUFF ENCERRADO -> O bônus de {buff.valor} em {buff.tipoBuff} acabou para {buff.carta.nome}.");
+        Debug.Log($"BUFF ENCERRADO -> O b?nus de {buff.valor} em {buff.tipoBuff} acabou para {buff.carta.nome}.");
     }
 
     private void RemoverTodosBuffsDaCarta(GameObject cartaObj)
@@ -2161,6 +2184,182 @@ public class CombateAmigavel : MonoBehaviour
                 buffsTemporariosAtivos.RemoveAt(i);
             }
         }
+    }
+
+    private void ReproduzirEfeitoVisualHabilidadeEspecial(GameObject usuarioObj, GameObject alvoObj, HabilidadeCarta habilidade)
+    {
+        if (usuarioObj == null || alvoObj == null || habilidade == null)
+            return;
+
+        // O sistema visual desta secao e exclusivo para habilidades marcadas como especiais.
+        if (!habilidade.habilidadeEspecial)
+            return;
+
+        Sprite[] frames = habilidade.framesEfeitoHabilidadeEspecial;
+        if (frames == null || frames.Length == 0)
+            return;
+
+        GameObject efeitoObj = new GameObject($"EfeitoHabilidadeEspecial_{habilidade.nomeHabilidade}");
+        efeitoObj.layer = alvoObj.layer;
+
+        Vector3 posicaoAlvo = alvoObj.transform.position;
+        Vector2 deslocamento = habilidade.deslocamentoEfeitoHabilidadeEspecial;
+
+        efeitoObj.transform.position = new Vector3(
+            posicaoAlvo.x + deslocamento.x,
+            posicaoAlvo.y + deslocamento.y,
+            posicaoAlvo.z
+        );
+
+        efeitoObj.transform.rotation = Quaternion.Euler(0f, 0f, habilidade.rotacaoEfeitoHabilidadeEspecial);
+
+        Vector2 escala = habilidade.escalaEfeitoHabilidadeEspecial;
+        efeitoObj.transform.localScale = new Vector3(
+            Mathf.Max(0.0001f, Mathf.Abs(escala.x)),
+            Mathf.Max(0.0001f, Mathf.Abs(escala.y)),
+            1f
+        );
+
+        SpriteRenderer rendererEfeito = efeitoObj.AddComponent<SpriteRenderer>();
+        rendererEfeito.flipX = habilidade.inverterEfeitoHabilidadeEspecialHorizontal;
+        rendererEfeito.flipY = habilidade.inverterEfeitoHabilidadeEspecialVertical;
+
+        SpriteRenderer rendererAlvo = alvoObj.GetComponent<SpriteRenderer>();
+        if (rendererAlvo != null)
+        {
+            rendererEfeito.sortingLayerID = rendererAlvo.sortingLayerID;
+            rendererEfeito.sortingOrder = rendererAlvo.sortingOrder + ordemRenderizacaoAcimaDaCarta;
+        }
+
+        StartCoroutine(AnimarEfeitoVisualHabilidadeEspecial(
+            efeitoObj,
+            rendererEfeito,
+            frames,
+            Mathf.Max(0.01f, habilidade.tempoEntreFramesEfeitoHabilidadeEspecial)
+        ));
+    }
+
+    private IEnumerator AnimarEfeitoVisualHabilidadeEspecial(GameObject efeitoObj, SpriteRenderer rendererEfeito, Sprite[] frames, float tempoEntreFrames)
+    {
+        if (efeitoObj == null || rendererEfeito == null || frames == null || frames.Length == 0)
+        {
+            if (efeitoObj != null)
+                Destroy(efeitoObj);
+
+            yield break;
+        }
+
+        for (int i = 0; i < frames.Length; i++)
+        {
+            if (efeitoObj == null || rendererEfeito == null)
+                yield break;
+
+            if (frames[i] != null)
+                rendererEfeito.sprite = frames[i];
+
+            yield return new WaitForSeconds(tempoEntreFrames);
+        }
+
+        if (efeitoObj != null)
+            Destroy(efeitoObj);
+    }
+
+    private void ReproduzirEfeitoVisualAtaque(GameObject atacanteObj, GameObject alvoObj)
+    {
+        if (atacanteObj == null || alvoObj == null)
+            return;
+
+        Carta cartaAtacante = atacanteObj.GetComponent<Carta>();
+        if (cartaAtacante == null)
+            return;
+
+        bool possuiEfeitoPersonalizado = cartaAtacante.framesEfeitoAtaque != null && cartaAtacante.framesEfeitoAtaque.Length > 0;
+
+        Sprite[] frames = possuiEfeitoPersonalizado
+            ? cartaAtacante.framesEfeitoAtaque
+            : framesEfeitoAtaquePadrao;
+
+        if (frames == null || frames.Length == 0)
+            return;
+
+        float tempoEntreFrames = possuiEfeitoPersonalizado
+            ? cartaAtacante.tempoEntreFramesEfeitoAtaque
+            : tempoEntreFramesEfeitoAtaquePadrao;
+
+        Vector2 deslocamento = possuiEfeitoPersonalizado
+            ? cartaAtacante.deslocamentoEfeitoAtaque
+            : deslocamentoEfeitoAtaquePadrao;
+
+        Vector2 escala = possuiEfeitoPersonalizado
+            ? cartaAtacante.escalaEfeitoAtaque
+            : escalaEfeitoAtaquePadrao;
+
+        float rotacao = possuiEfeitoPersonalizado
+            ? cartaAtacante.rotacaoEfeitoAtaque
+            : rotacaoEfeitoAtaquePadrao;
+
+        bool inverterHorizontal = possuiEfeitoPersonalizado && cartaAtacante.inverterEfeitoAtaqueHorizontal;
+        bool inverterVertical = possuiEfeitoPersonalizado && cartaAtacante.inverterEfeitoAtaqueVertical;
+
+        GameObject efeitoObj = new GameObject($"EfeitoAtaque_{cartaAtacante.nome}");
+        efeitoObj.layer = alvoObj.layer;
+
+        Vector3 posicaoAlvo = alvoObj.transform.position;
+        efeitoObj.transform.position = new Vector3(
+            posicaoAlvo.x + deslocamento.x,
+            posicaoAlvo.y + deslocamento.y,
+            posicaoAlvo.z
+        );
+
+        efeitoObj.transform.rotation = Quaternion.Euler(0f, 0f, rotacao);
+        efeitoObj.transform.localScale = new Vector3(
+            Mathf.Max(0.0001f, Mathf.Abs(escala.x)),
+            Mathf.Max(0.0001f, Mathf.Abs(escala.y)),
+            1f
+        );
+
+        SpriteRenderer rendererEfeito = efeitoObj.AddComponent<SpriteRenderer>();
+        rendererEfeito.flipX = inverterHorizontal;
+        rendererEfeito.flipY = inverterVertical;
+
+        SpriteRenderer rendererAlvo = alvoObj.GetComponent<SpriteRenderer>();
+        if (rendererAlvo != null)
+        {
+            rendererEfeito.sortingLayerID = rendererAlvo.sortingLayerID;
+            rendererEfeito.sortingOrder = rendererAlvo.sortingOrder + ordemRenderizacaoAcimaDaCarta;
+        }
+
+        StartCoroutine(AnimarEfeitoVisualAtaque(
+            efeitoObj,
+            rendererEfeito,
+            frames,
+            Mathf.Max(0.01f, tempoEntreFrames)
+        ));
+    }
+
+    private IEnumerator AnimarEfeitoVisualAtaque(GameObject efeitoObj, SpriteRenderer rendererEfeito, Sprite[] frames, float tempoEntreFrames)
+    {
+        if (efeitoObj == null || rendererEfeito == null || frames == null || frames.Length == 0)
+        {
+            if (efeitoObj != null)
+                Destroy(efeitoObj);
+
+            yield break;
+        }
+
+        for (int i = 0; i < frames.Length; i++)
+        {
+            if (efeitoObj == null || rendererEfeito == null)
+                yield break;
+
+            if (frames[i] != null)
+                rendererEfeito.sprite = frames[i];
+
+            yield return new WaitForSeconds(tempoEntreFrames);
+        }
+
+        if (efeitoObj != null)
+            Destroy(efeitoObj);
     }
 
     private int CalcularDanoFinal(int danoAtacante, int defesaAlvo)
@@ -2186,19 +2385,19 @@ public class CombateAmigavel : MonoBehaviour
 
         if (!CartaPodeReceberDano(atacanteObj))
         {
-            Debug.LogWarning("Ataque cancelado: atacante inválido.");
+            Debug.LogWarning("Ataque cancelado: atacante inv?lido.");
             return;
         }
 
         if (CartaEstaParalisada(atacanteObj))
         {
-            Debug.LogWarning("Ataque cancelado: a carta está com Sobrecarga e não pode atacar.");
+            Debug.LogWarning("Ataque cancelado: a carta est? com Sobrecarga e n?o pode atacar.");
             return;
         }
 
         if (!CartaPodeReceberDano(alvoObj))
         {
-            Debug.LogWarning("Ataque cancelado: alvo inválido.");
+            Debug.LogWarning("Ataque cancelado: alvo inv?lido.");
             return;
         }
 
@@ -2207,15 +2406,17 @@ public class CombateAmigavel : MonoBehaviour
 
         if (atacante == null || alvo == null)
         {
-            Debug.LogWarning("Ataque cancelado: componente Carta não encontrado.");
+            Debug.LogWarning("Ataque cancelado: componente Carta n?o encontrado.");
             return;
         }
 
         if (DisfarceProtegeContraAtacante(alvoObj, atacanteObj))
         {
-            Debug.Log($"ATAQUE BLOQUEADO PELO DISFARCE -> {alvo.nome} não recebeu dano de {atacante.nome}.");
+            Debug.Log($"ATAQUE BLOQUEADO PELO DISFARCE -> {alvo.nome} n?o recebeu dano de {atacante.nome}.");
             return;
         }
+
+        ReproduzirEfeitoVisualAtaque(atacanteObj, alvoObj);
 
         RemoverDisfarceSeAtacouOponente(atacanteObj, alvoObj);
 
@@ -2242,7 +2443,7 @@ public class CombateAmigavel : MonoBehaviour
 
         if (alvo.vida <= 0)
         {
-            Debug.Log($"{alvo.nome} foi derrotada e enviada ao cemitério.");
+            Debug.Log($"{alvo.nome} foi derrotada e enviada ao cemit?rio.");
 
             if (cartaInimigoAlvoSelecionada == alvoObj)
                 cartaInimigoAlvoSelecionada = null;
@@ -2260,7 +2461,7 @@ public class CombateAmigavel : MonoBehaviour
         if (carta == null)
             return false;
 
-        // Não recebe dano se já estiver no cemitério
+        // N?o recebe dano se j? estiver no cemit?rio
         if (EstaEmSlotComTag(cartaObj.transform, tagSlotCemiterio))
             return false;
 
@@ -2290,7 +2491,7 @@ public class CombateAmigavel : MonoBehaviour
         AtualizarTextoTurno();
         AtualizarTextosDeRecursos();
 
-        Debug.Log("Turno do inimigo encerrado. Agora é o turno do player.");
+        Debug.Log("Turno do inimigo encerrado. Agora ? o turno do player.");
     }
 
     private void TentarRecuperarEnergiaPlayer()
@@ -2312,7 +2513,7 @@ public class CombateAmigavel : MonoBehaviour
         }
         else
         {
-            Debug.Log("Player não recuperou energia desta vez.");
+            Debug.Log("Player n?o recuperou energia desta vez.");
         }
     }
 
@@ -2335,7 +2536,7 @@ public class CombateAmigavel : MonoBehaviour
         }
         else
         {
-            Debug.Log("Inimigo não recuperou energia desta vez.");
+            Debug.Log("Inimigo n?o recuperou energia desta vez.");
         }
     }
 

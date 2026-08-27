@@ -106,10 +106,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Carta
   nome: Anomalia
+  estrelas: 1
   dano: 3
   vida: 18
   defesa: 2
   raridade: 0
+  quantidadeHabilidades: 0
+  habilidades: []
+  efeitoSobrecargaAtivo: 0
+  turnosSobrecargaRestantes: 0
+  efeitoFogoAtivo: 0
+  turnosFogoRestantes: 0
+  danoFogoPorTurno: 0
+  efeitoSangramentoAtivo: 0
+  turnosSangramentoRestantes: 0
+  danoSangramentoPorTurno: 0
+  disfarceAtivo: 0
+  spriteOriginalAntesDoDisfarce: {fileID: 0}
+  framesEfeitoAtaque:
+  - {fileID: 221665350772043956, guid: a73cf94e75489f5468a396ef4816d13f, type: 3}
+  - {fileID: 6985509709151009746, guid: a73cf94e75489f5468a396ef4816d13f, type: 3}
+  - {fileID: 4261413225353876988, guid: a73cf94e75489f5468a396ef4816d13f, type: 3}
+  - {fileID: 4817701632910700306, guid: a73cf94e75489f5468a396ef4816d13f, type: 3}
+  - {fileID: -1161255202351778603, guid: a73cf94e75489f5468a396ef4816d13f, type: 3}
+  - {fileID: 7366920895020759750, guid: a73cf94e75489f5468a396ef4816d13f, type: 3}
+  tempoEntreFramesEfeitoAtaque: 0.08
+  deslocamentoEfeitoAtaque: {x: 0, y: 0}
+  escalaEfeitoAtaque: {x: 1, y: 1}
+  rotacaoEfeitoAtaque: 0
+  inverterEfeitoAtaqueHorizontal: 0
+  inverterEfeitoAtaqueVertical: 0
 --- !u!61 &4976409202617462226
 BoxCollider2D:
   m_ObjectHideFlags: 0
